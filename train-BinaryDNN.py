@@ -5,6 +5,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Code to train deep neural network
 # for HH->WWyy analysis.
+# import shap
 import matplotlib.pyplot as plt
 import numpy as np
 from array import array
@@ -65,34 +66,35 @@ def load_data(inputPath,variables,criteria):
         if 'HH' in key:
             sampleNames=key
             subdir_name = 'Signal'
-            fileNames = ['ggF_SM_WWgg_qqlnugg_Hadded']
+            fileNames = ['ggF_SM_WWgg_qqqq_Hadded']
             target=1
         else:
             sampleNames= key
             subdir_name = 'Backgrounds'
-            fileNames = ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded']#,'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded']#,'TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded']#,'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded','TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded']
+            fileNames = ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8']#,'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded']#,'TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded']#,'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded','TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded']
             #fileNames = ['DiPhotonJetsBox_MGG-80toInf_13TeV-Sherpa_Hadded']
             target=0
 
         for filen in fileNames:
-            if 'ggF_SM_WWgg_qqlnugg_Hadded' in filen:
-                treename=['tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_0','tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_1']
+            if 'ggF_SM_WWgg_qqqq_Hadded' in filen:
+                #treename=['tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_2','tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_1']
                 #treename=['tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_1']
-                #treename=['tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_2']
+                treename=['tagsDumper/trees/GluGluToHHTo_WWgg_qqqq_nodeSM_13TeV_HHWWggTag_2']
             elif 'DiPhotonJetsBox_MGG' in filen:
                 treename=['tagsDumper/trees/DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_0','tagsDumper/trees/DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_1']
                 #treename=['tagsDumper/trees/DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_1']
             elif 'GJet_Pt-40toInf' in filen:
-                treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0','tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
+                treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                # treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0','tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
                 #treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
             elif 'DYJetsToLL_M-50_TuneCP5' in filen:
-                treename=['tagsDumper/trees/DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_0']
+                treename=['tagsDumper/trees/DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_2']
                 #treename=['tagsDumper/trees/DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_1']
             elif 'TTGG' in filen:
-                treename=['tagsDumper/trees/TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_0']
+                treename=['tagsDumper/trees/TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_2']
                 #,'tagsDumper/trees/TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_1']
             elif 'TTGJets' in filen:
-                treename=['tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0']
+                treename=['tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2']
                 #,'tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_1']
 
             fileName = os.path.join(subdir_name,filen)
@@ -338,6 +340,7 @@ def baseline_model(num_variables,optimizer='Adam',learn_rate=0.001,nClasses=1):
     model = Sequential()
     model.add(Dense(32,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
     model.add(Dense(32,activation='relu'))
+    model.add(Dense(32,activation='relu'))
     '''model.add(Dense(32,activation='relu'))
     model.add(Dense(32,activation='relu'))
     model.add(Dense(32,activation='relu'))
@@ -399,7 +402,8 @@ def main():
 
     #input_var_jsonFile = open('input_variables_new.json','r')
     input_var_jsonFile = open('input_variables.json','r')
-    selection_criteria = '(passPhotonSels==1 && passbVeto==1 && ExOneLep==1 && goodJets==1)'
+    selection_criteria = '(AtLeast4GoodJets0Lep==1)'
+    # selection_criteria = '(passPhotonSels==1 && passbVeto==1 && ExOneLep==1 && goodJets==1)'
 
     # Load Variables from .json
     variable_list = json.load(input_var_jsonFile,encoding="utf-8").items()
@@ -414,7 +418,8 @@ def main():
     column_headers.append('classbalance')
 
     # Create instance of the input files directory
-    inputs_file_path = '/afs/cern.ch/work/a/atishelm/public/ForJosh/2017_DataMC_ntuples_moreVars'
+    #inputs_file_path = '/afs/cern.ch/work/a/atishelm/public/ForJosh/2017_DataMC_ntuples_moreVars'
+    inputs_file_path = '/eos/user/r/rasharma/post_doc_ihep/double-higgs/ntuples/September29/MVANtuples'
 
     # Load ttree into .csv including all variables listed in column_headers
     print '<train-DNN> Input file path: ', inputs_file_path
@@ -469,9 +474,9 @@ def main():
     train_df = data.iloc[:traindataset.shape[0]]
 
     ## Input Variable Correlation plot
-    correlation_plot_file_name = 'correlation_plot.pdf'
-    #Plotter.correlation_matrix(train_df)
-    #Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name)
+    correlation_plot_file_name = 'correlation_plot.png'
+    Plotter.correlation_matrix(train_df)
+    Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name)
 
     ####################################################################################
     # Weights applied during training. You will also need to update the class weights if
@@ -503,7 +508,7 @@ def main():
         histories = []
         labels = []
         # Define model and early stopping
-        early_stopping_monitor = EarlyStopping(patience=20,monitor='val_loss',verbose=1)
+        early_stopping_monitor = EarlyStopping(patience=51,monitor='val_loss',verbose=1)
         model3 = baseline_model(num_variables,optimizer='Nadam',learn_rate=0.005)
 
         '''epochs = [50,100,200]
@@ -533,7 +538,7 @@ def main():
         # Batch size = examples before updating weights (larger = faster training)
         # Epoch = One pass over data (useful for periodic logging and evaluation)
         class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
-        history3 = model3.fit(X_train,Y_train,validation_split=0.1,epochs=100,batch_size=100,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
+        history3 = model3.fit(X_train,Y_train,validation_split=0.1,epochs=500,batch_size=100,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
         histories.append(history3)
         labels.append(optimizer)
 
@@ -576,8 +581,10 @@ def main():
     with open(model_json_name,'w') as json_file:
         json_file.write(model_json)
     model.summary()
-    model_schematic_name = os.path.join(output_directory,'model_schematic.png')
+    model_schematic_name = os.path.join(output_directory,'model_schematic.eps')
+    print "DEBUG: ",model_schematic_name
     plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_names=True)
+    # plot_model(model, to_file='model_schematic.eps', show_shapes=True, show_layer_names=True)
 
     # Initialise output directory.
     Plotter.plots_directory = plots_dir
@@ -587,27 +594,39 @@ def main():
     print 'result_probs: '
     print result_probs
     Plotter.binary_overfitting(model, Y_train, Y_test, result_probs, result_probs_test, plots_dir, train_weights, test_weights)
+    print "DEBUG: Y_train shape: ",Y_train.shape
+
+    # # Get true process integers for training dataset
+    # original_encoded_train_Y = []
+    # for i in xrange(len(result_probs)):
+    #     if Y_train[i][0] == 1:
+    #         original_encoded_train_Y.append(0)
+    #     if Y_train[i][1] == 1:
+    #         original_encoded_train_Y.append(1)
+    #     if Y_train[i][2] == 1:
+    #         original_encoded_train_Y.append(2)
+    #     if Y_train[i][3] == 1:
+    #         original_encoded_train_Y.append(3)
 
     # Get true class values for testing dataset
-    #result_classes_test = newencoder.inverse_transform(result_classes_test)
-    #result_classes_train = newencoder.inverse_transform(result_classes)
+    # result_classes_test = newencoder.inverse_transform(result_classes_test)
+    # result_classes_train = newencoder.inverse_transform(result_classes)
 
     # Create confusion matrices for training and testing performance
-    '''Plotter.conf_matrix(original_encoded_train_Y,result_classes_train,train_weights,'index')
-    Plotter.save_plots(dir=plots_dir, filename='yields_norm_confusion_matrix_TRAIN.png')
-    Plotter.conf_matrix(original_encoded_test_Y,result_classes_test,test_weights,'index')
-    Plotter.save_plots(dir=plots_dir, filename='yields_norm_confusion_matrix_TEST.png')
+    # Plotter.conf_matrix(original_encoded_train_Y,result_classes_train,train_weights,'index')
+    # Plotter.save_plots(dir=plots_dir, filename='yields_norm_confusion_matrix_TRAIN.png')
+    # Plotter.conf_matrix(original_encoded_test_Y,result_classes_test,test_weights,'index')
+    # Plotter.save_plots(dir=plots_dir, filename='yields_norm_confusion_matrix_TEST.png')
 
-    Plotter.conf_matrix(original_encoded_train_Y,result_classes_train,train_weights,'columns')
-    Plotter.save_plots(dir=plots_dir, filename='yields_norm_columns_confusion_matrix_TRAIN.png')
-    Plotter.conf_matrix(original_encoded_test_Y,result_classes_test,test_weights,'columns')
-    Plotter.save_plots(dir=plots_dir, filename='yields_norm_columns_confusion_matrix_TEST.png')
-    '''
+    # Plotter.conf_matrix(original_encoded_train_Y,result_classes_train,train_weights,'columns')
+    # Plotter.save_plots(dir=plots_dir, filename='yields_norm_columns_confusion_matrix_TRAIN.png')
+    # Plotter.conf_matrix(original_encoded_test_Y,result_classes_test,test_weights,'columns')
+    # Plotter.save_plots(dir=plots_dir, filename='yields_norm_columns_confusion_matrix_TEST.png')
 
-    '''Plotter.conf_matrix(original_encoded_train_Y,result_classes_train,train_weights,'')
-    Plotter.save_plots(dir=plots_dir, filename='yields_matrix_TRAIN.png')
-    Plotter.conf_matrix(original_encoded_test_Y,result_classes_test,test_weights,'')
-    Plotter.save_plots(dir=plots_dir, filename='yields_matrix_TEST.png')'''
+    # Plotter.conf_matrix(original_encoded_train_Y,result_classes_train,train_weights,'')
+    # Plotter.save_plots(dir=plots_dir, filename='yields_matrix_TRAIN.png')
+    # Plotter.conf_matrix(original_encoded_test_Y,result_classes_test,test_weights,'')
+    # Plotter.save_plots(dir=plots_dir, filename='yields_matrix_TEST.png')
 
     Plotter.ROC_sklearn(Y_train, result_probs, Y_test, result_probs_test, 1 , 'BinaryClassifierROC')
 
