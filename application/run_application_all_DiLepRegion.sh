@@ -1,0 +1,4 @@
+#!/bin/bash
+source run_application_series_DiLepRegion.sh
+source run_application_JESDOWN_series_DiLepRegion.sh
+source run_application_JESUP_series_DiLepRegion.sh

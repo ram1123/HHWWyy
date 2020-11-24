@@ -1,4 +1,5 @@
 import numpy as np
+import shap
 import pandas
 import os
 import sklearn
@@ -43,7 +44,7 @@ class plotter(object):
         #self.ax1.set_xticklabels(fontsize=15)
         plt.xlabel('Epoch')
         plt.legend(loc='upper right')
-        for i in xrange(len(histories)):
+        for i in range(len(histories)):
             history1 = histories[i]
             label_name_train = '%s train' % (labels[i])
             label_name_test = '%s test' % (labels[i])
@@ -135,7 +136,7 @@ class plotter(object):
         output_probs_test = []
 
         # Loop over all training events
-        for i in xrange(0,len(original_encoded_train_Y)):
+        for i in range(0,len(original_encoded_train_Y)):
             # If training events truth value is target for the node assigned as signal by the variable encoded_signal append a 1
             # else assign as background and append a 0.
             if original_encoded_train_Y[i] == encoded_signal:
@@ -145,7 +146,7 @@ class plotter(object):
             # For ith event, get the probability that this event is from the signal process
             output_probs_train.append(result_probs_train[i])
         # Loop over all testing events
-        for i in xrange(0,len(original_encoded_test_Y)):
+        for i in range(0,len(original_encoded_test_Y)):
             if original_encoded_test_Y[i] == encoded_signal:
                 SorB_class_test.append(1)
             else:
@@ -207,7 +208,7 @@ class plotter(object):
         if nB == 0:
             print 'WARNING: no bckg'
 
-        for i in xrange(1,nBins):
+        for i in range(1,nBins):
             # No need to norm as already done?
             sig_bin_norm = hist_sig[i]/nS
             #sig_bin_norm = hist_sig[i]
@@ -234,7 +235,7 @@ class plotter(object):
 
         bin_edges_low_high = np.array([0.,0.0625,0.125,0.1875,0.25,0.3125,0.375,0.4375,0.5,0.5625,0.6125,0.675,0.7375,0.8,0.8625,0.9375,1.0])
 
-        for index in xrange(0,len(y_scores_train)-1):
+        for index in range(0,len(y_scores_train)-1):
             y_train = y_scores_train[index]
             y_test = y_scores_test[index]
             label = labels[index]
@@ -398,7 +399,7 @@ class plotter(object):
         frame.set_facecolor('White')
 
         overfitting_plot_file_name = 'overfitting_plot_%s_%s.png' % (node_name,plot_title)
-        print 'Saving : %s%s' % (plots_dir, overfitting_plot_file_name)
+        print('Saving : %s%s' % (plots_dir, overfitting_plot_file_name))
         self.save_plots(dir=plots_dir, filename=overfitting_plot_file_name)
 
         return separations_forTable
@@ -417,7 +418,7 @@ class plotter(object):
         bin_edges_low_high = np.array([0.,0.0625,0.125,0.1875,0.25,0.3125,0.375,0.4375,0.5,0.5625,0.6125,0.675,0.7375,0.8,0.8625,0.9375,1.0])
 
         index=0
-        for index in xrange(0,len(y_scores_train)):
+        for index in range(0,len(y_scores_train)):
             train_bin_errors = np.zeros(len(bin_edges_low_high)-1)
             test_bin_errors = np.zeros(len(bin_edges_low_high)-1)
 
@@ -426,11 +427,11 @@ class plotter(object):
             colour = colours[index]
             width = np.diff(bin_edges_low_high)
             if index==0:
-                print 'Overfitting plot: Signal'
+                print('<plotter> Overfitting plot: Signal')
                 label='signal'
             if index==1:
                 label='bckg'
-                print 'Overfitting plot: Background'
+                print('<plotter> Overfitting plot: Background')
 
             # Setup training histograms
             histo_train_, bin_edges = np.histogram(y_train, bins=bin_edges_low_high)
@@ -473,14 +474,13 @@ class plotter(object):
                 # err(sum weights) = sqrt( sum{var(w_i)}[i=1,2,N] )
                 #                  = sqrt( sum{w_i^2}[i=1,2,N] )
                 bin_errors_sumw2 = 0
-                for yval_index in xrange(0,len(y_scores_test[0])):
-                    for bin_index in xrange(0,len(bin_edges_low_high)-1):
+                for yval_index in range(0,len(y_scores_test[0])):
+                    for bin_index in range(0,len(bin_edges_low_high)-1):
                         bin_low_edge = bin_edges_low_high[bin_index]
                         bin_high_edge = bin_edges_low_high[bin_index+1]
                         if y_scores_test[0][yval_index] > bin_low_edge and y_scores_test[0][yval_index] < bin_high_edge:
                             test_bin_errors[[bin_index]] += 1#test_weights[yval_index]**2
                 # Take square root of sum of bins.
-                print 'test_bin_errors: ', test_bin_errors
                 test_bin_errors = (np.sqrt(test_bin_errors)/np.sum(histo_test_, dtype=np.float32)) / dx_scale_test
                 #test_bin_errors = np.sqrt(( test_bin_errors/np.sum(histo_test_, dtype=np.float32) ) / dx_scale_test )
                 histo_test_ = ( histo_test_ / np.sum(histo_test_, dtype=np.float32) ) / dx_scale_test
@@ -516,7 +516,7 @@ class plotter(object):
         frame.set_facecolor('White')
 
         overfitting_plot_file_name = 'overfitting_plot_BinaryClassifier_%s.png' % (plot_title)
-        print 'Saving : %s%s' % (plots_dir, overfitting_plot_file_name)
+        print('Saving : %s%s' % (plots_dir, overfitting_plot_file_name))
         self.save_plots(dir=plots_dir, filename=overfitting_plot_file_name)
         return separations_forTable
 
@@ -539,7 +539,7 @@ DY & %s \\ \hline
 '''
         table_path = os.path.join(outputdir,'separation_table')
         table_tex = table_path+'.tex'
-        print 'table_tex: ', table_tex
+        print('table_tex: ', table_tex)
         with open(table_tex,'w') as f:
             f.write( content % (self.separations_categories[0], self.separations_categories[1], self.separations_categories[2], self.separations_categories[3] ) )
         return
@@ -597,7 +597,7 @@ DY & %s \\ \hline
         y_scores_train_GJets_sample_DY_categorised = []
         y_scores_train_DY_sample_DY_categorised = []
 
-        for i in xrange(len(result_probs)):
+        for i in range(len(result_probs)):
             train_event_weight = train_weights[i]
             if Y_train[i][0] == 1:
                 y_scores_train_HH_sample_HHnode.append(result_probs[i][0])
@@ -702,7 +702,7 @@ DY & %s \\ \hline
         y_scores_test_GJets_sample_DY_categorised = []
         y_scores_test_DY_sample_DY_categorised = []
 
-        for i in xrange(len(result_probs_test)):
+        for i in range(len(result_probs_test)):
             test_event_weight = test_weights[i]
             if Y_test[i][0] == 1:
                 y_scores_test_HH_sample_HHnode.append(result_probs_test[i][0])
@@ -823,13 +823,13 @@ DY & %s \\ \hline
         y_scores_train_bckg_sample = []
         y_scores_test_signal_sample = []
         y_scores_test_bckg_sample = []
-        for i in xrange(0,len(result_probs)-1):
+        for i in range(0,len(result_probs)-1):
             train_event_weight = train_weights[i]
             if Y_train[i] == 1:
                 y_scores_train_signal_sample.append(result_probs[i])
             if Y_train[i] == 0:
                 y_scores_train_bckg_sample.append(result_probs[i])
-        for i in xrange(0,len(result_probs_test)-1):
+        for i in range(0,len(result_probs_test)-1):
             test_event_weight = test_weights[i]
             if Y_test[i] == 1:
                 y_scores_test_signal_sample.append(result_probs_test[i])
@@ -852,3 +852,32 @@ DY & %s \\ \hline
             counter = counter+1
 
         return
+    def plot_dot(self, title, x, shap_values, column_headers):
+        plt.figure()
+        if x is None:
+          print('<plotter> No x defined. Leaving class function')
+          return
+        shap.summary_plot(shap_values[0], features=x, feature_names=column_headers, show=False, max_display=10)
+        plt.gca().set_title(title)
+        plt.tight_layout()
+        plt.savefig("{}/plots/{}.png".format(self.output_directory, title), bbox_inches='tight')
+
+    def plot_dot_bar(self, title, x, shap_values, column_headers):
+        plt.figure()
+        if x is None:
+            print('<plotter> No x defined. Leaving class function')
+            return
+        shap.summary_plot(shap_values[0], features=x, feature_names=column_headers, show=False,plot_type='bar',max_display=10)
+        plt.gca().set_title(title)
+        plt.tight_layout()
+        plt.savefig("{}/plots/{}.png".format(self.output_directory,title), bbox_inches='tight')
+
+    def plot_dot_bar_all(self , title, x, shap_values, column_headers):
+        plt.figure()
+        if x is None:
+            print('<plotter> No x defined. Leaving class function')
+            return
+        shap.summary_plot(shap_values[0], features=x, feature_names=column_headers, show=False,plot_type='bar',max_display=len(column_headers))
+        plt.gca().set_title(title)
+        plt.tight_layout()
+        plt.savefig("{}/plots/{}.png".format(self.output_directory,title), bbox_inches='tight')
