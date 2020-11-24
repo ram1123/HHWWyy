@@ -105,165 +105,6 @@ def load_data(inputPath,variables,criteria):
                 print 'tname: ', tname
                 ch_0 = tfile.Get(tname)
                 if ch_0 is not None :
-                    '''
-                    #============= Create new lepton collections =====================
-                    nentries = ch_0.GetEntries()
-                    ch_0.SetBranchStatus("*",1)
-                    skimmed_file = ROOT.TFile("skimmed_file.root","RECREATE")
-                    skimmed_tree = TTree("skimmed_tree", "skimmed tree")
-                    N_goodJets = array('d',[0])
-                    goodJets_0_pt = array('d',[0])
-                    goodJets_0_eta = array('d',[0])
-                    goodJets_0_phi = array('d',[0])
-                    goodJets_0_E = array('d',[0])
-                    goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb = array('d',[0])
-                    goodJets_1_pt = array('d',[0])
-                    goodJets_1_eta = array('d',[0])
-                    goodJets_1_phi = array('d',[0])
-                    goodJets_1_E = array('d',[0])
-                    goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb = array('d',[0])
-                    Leading_Photon_E = array('d',[0])
-                    Leading_Photon_pt = array('d',[0])
-                    Leading_Photon_eta = array('d',[0])
-                    Leading_Photon_phi = array('d',[0])
-                    Leading_Photon_MVA = array('d',[0])
-                    Subleading_Photon_E = array('d',[0])
-                    Subleading_Photon_pt = array('d',[0])
-                    Subleading_Photon_eta = array('d',[0])
-                    Subleading_Photon_phi = array('d',[0])
-                    Subleading_Photon_MVA = array('d',[0])
-                    weight = array('d',[0])
-                    looser_lep0_pt = array('d',[0])
-                    looser_lep0_eta = array('d',[0])
-                    looser_lep0_phi = array('d',[0])
-                    looser_lep0_E = array('d',[0])
-                    looser_lep0_flav = array('d',[0])
-                    skimmed_tree.Branch("weight", weight, "weight/D")
-                    skimmed_tree.Branch("N_goodJets", N_goodJets, "N_goodJets/D")
-                    skimmed_tree.Branch("goodJets_0_pt", goodJets_0_pt, "goodJets_0_pt/D")
-                    skimmed_tree.Branch("goodJets_0_eta", goodJets_0_eta, "goodJets_0_eta/D")
-                    skimmed_tree.Branch("goodJets_0_phi", goodJets_0_phi, "goodJets_0_phi/D")
-                    skimmed_tree.Branch("goodJets_0_E", goodJets_0_E, "goodJets_0_E/D")
-                    skimmed_tree.Branch("goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb", goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb, "goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb/D")
-                    skimmed_tree.Branch("goodJets_1_pt", goodJets_1_pt, "goodJets_1_pt/D")
-                    skimmed_tree.Branch("goodJets_1_eta", goodJets_1_eta, "goodJets_1_eta/D")
-                    skimmed_tree.Branch("goodJets_1_phi", goodJets_1_phi, "goodJets_1_phi/D")
-                    skimmed_tree.Branch("goodJets_1_E", goodJets_1_E, "goodJets_1_E/D")
-                    skimmed_tree.Branch("goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb", goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb, "goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb/D")
-                    skimmed_tree.Branch("Leading_Photon_E", Leading_Photon_E, "Leading_Photon_E/D")
-                    skimmed_tree.Branch("Leading_Photon_pt", Leading_Photon_pt, "Leading_Photon_pt/D")
-                    skimmed_tree.Branch("Leading_Photon_eta", Leading_Photon_eta, "Leading_Photon_eta/D")
-                    skimmed_tree.Branch("Leading_Photon_phi", Leading_Photon_phi, "Leading_Photon_phi/D")
-                    skimmed_tree.Branch("Leading_Photon_MVA", Leading_Photon_MVA, "Leading_Photon_MVA/D")
-                    skimmed_tree.Branch("Subleading_Photon_E", Subleading_Photon_E, "Subleading_Photon_E/D")
-                    skimmed_tree.Branch("Subleading_Photon_pt", Subleading_Photon_pt, "Subleading_Photon_pt/D")
-                    skimmed_tree.Branch("Subleading_Photon_eta", Subleading_Photon_eta, "Subleading_Photon_eta/D")
-                    skimmed_tree.Branch("Subleading_Photon_phi", Subleading_Photon_phi, "Subleading_Photon_phi/D")
-                    skimmed_tree.Branch("Subleading_Photon_MVA", Subleading_Photon_MVA, "Subleading_Photon_MVA/D")
-                    skimmed_tree.Branch("looser_lep0_pt", looser_lep0_pt, "looser_lep0_pt/D")
-                    skimmed_tree.Branch("looser_lep0_eta", looser_lep0_eta, "looser_lep0_eta/D")
-                    skimmed_tree.Branch("looser_lep0_phi", looser_lep0_phi, "looser_lep0_phi/D")
-                    skimmed_tree.Branch("looser_lep0_E", looser_lep0_E, "looser_lep0_E/D")
-                    skimmed_tree.Branch("looser_lep0_flav", looser_lep0_flav, "looser_lep0_flav/D")
-                    if 'DiPhoton' in fileName and nentries > 100000:
-                        nentries = 100000
-                    print 'nentries: ', nentries
-                    for event in range(nentries):
-                        ch_0.GetEntry(event)
-                        percent_done = event/(nentries/100.)
-                        if percent_done%10.==0.:
-                            print "Percentage done: ", event/(nentries/100.)
-
-                        if ch_0.goodJets!=1 or ch_0.passbVeto!=1 or ch_0.passPhotonSels!=1:
-                            continue
-
-                        ele_id_array = [ch_0.allElectrons_0_passLooseId, ch_0.allElectrons_1_passLooseId, ch_0.allElectrons_2_passLooseId, ch_0.allElectrons_3_passLooseId, ch_0.allElectrons_4_passLooseId]
-                        ele_pt_array = [ch_0.allElectrons_0_pt, ch_0.allElectrons_1_pt, ch_0.allElectrons_2_pt, ch_0.allElectrons_3_pt, ch_0.allElectrons_4_pt]
-                        ele_eta_array = [ch_0.allElectrons_0_eta, ch_0.allElectrons_1_eta, ch_0.allElectrons_2_eta, ch_0.allElectrons_3_eta, ch_0.allElectrons_4_eta]
-                        ele_phi_array = [ch_0.allElectrons_0_phi, ch_0.allElectrons_1_phi, ch_0.allElectrons_2_phi, ch_0.allElectrons_3_phi, ch_0.allElectrons_4_phi]
-                        ele_E_array = [ch_0.allElectrons_0_E, ch_0.allElectrons_1_E, ch_0.allElectrons_2_E, ch_0.allElectrons_3_E, ch_0.allElectrons_4_E]
-                        count_loose_ele=0
-                        loose_ele_pt = -1
-                        loose_ele_eta = -1
-                        loose_ele_phi = -1
-                        loose_ele_E = -1
-                        for ele in xrange(len(ele_id_array)):
-                            if ele_id_array[ele]>0 and ele_pt_array[ele]>=10. and ele_eta_array[ele]<2.5:
-                                count_loose_ele+=1
-                                loose_ele_pt = ele_pt_array[ele]
-                                loose_ele_eta = ele_eta_array[ele]
-                                loose_ele_phi = ele_phi_array[ele]
-                                loose_ele_E = ele_E_array[ele]
-                                looser_lep0_flav = 0
-                        mu_id_array = [ch_0.allMuons_0_isLooseMuon, ch_0.allMuons_1_isLooseMuon, ch_0.allMuons_2_isLooseMuon, ch_0.allMuons_3_isLooseMuon, ch_0.allMuons_4_isLooseMuon]
-                        mu_pt_array = [ch_0.allMuons_0_pt, ch_0.allMuons_1_pt, ch_0.allMuons_2_pt, ch_0.allMuons_3_pt, ch_0.allMuons_4_pt]
-                        mu_eta_array = [ch_0.allMuons_0_eta, ch_0.allMuons_1_eta, ch_0.allMuons_2_eta, ch_0.allMuons_3_eta, ch_0.allMuons_4_eta]
-                        mu_phi_array = [ch_0.allMuons_0_phi, ch_0.allMuons_1_phi, ch_0.allMuons_2_phi, ch_0.allMuons_3_phi, ch_0.allMuons_4_phi]
-                        mu_E_array = [ch_0.allMuons_0_E, ch_0.allMuons_1_E, ch_0.allMuons_2_E, ch_0.allMuons_3_E, ch_0.allMuons_4_E]
-                        count_loose_mu=0
-                        loose_mu_pt = -1
-                        loose_mu_eta = -1
-                        loose_mu_phi = -1
-                        loose_mu_E = -1
-                        for mu in xrange(len(mu_id_array)):
-                            if mu_id_array[mu]>0 and mu_pt_array[mu]>=10. and mu_eta_array[mu]<2.5:
-                                count_loose_mu+=1
-                                loose_mu_pt = mu_pt_array[mu]
-                                loose_mu_eta = mu_eta_array[mu]
-                                loose_mu_phi = mu_phi_array[mu]
-                                loose_mu_E = mu_E_array[mu]
-                        if (count_loose_mu+count_loose_ele)==1:
-                            if count_loose_mu==1:
-                                looser_lep0_pt[0] = loose_mu_pt
-                                looser_lep0_eta[0] = loose_mu_eta
-                                looser_lep0_phi[0] = loose_mu_phi
-                                looser_lep0_E[0] = loose_mu_E
-                                looser_lep0_flav = 0
-                            if count_loose_ele==1:
-                                looser_lep0_pt[0] = loose_ele_pt
-                                looser_lep0_eta[0] = loose_ele_eta
-                                looser_lep0_phi[0] = loose_ele_phi
-                                looser_lep0_E[0] = loose_ele_E
-                                looser_lep0_flav = 1
-                            N_goodJets[0] = ch_0.N_goodJets
-                            weight[0] = ch_0.weight
-                            goodJets_0_pt[0] = ch_0.goodJets_0_pt
-                            goodJets_0_eta[0] = ch_0.goodJets_0_eta
-                            goodJets_0_phi[0] = ch_0.goodJets_0_phi
-                            goodJets_0_E[0] = ch_0.goodJets_0_E
-                            goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb[0] = ch_0.goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb
-                            goodJets_1_pt[0] = ch_0.goodJets_1_pt
-                            goodJets_1_eta[0] = ch_0.goodJets_1_eta
-                            goodJets_1_phi[0] = ch_0.goodJets_1_phi
-                            goodJets_1_E[0] = ch_0.goodJets_1_E
-                            goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb[0] = ch_0.goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb
-                            Leading_Photon_E[0] = ch_0.Leading_Photon_E
-                            Leading_Photon_pt[0] = ch_0.Leading_Photon_pt
-                            Leading_Photon_eta[0] = ch_0.Leading_Photon_eta
-                            Leading_Photon_phi[0] = ch_0.Leading_Photon_phi
-                            Leading_Photon_MVA[0] = ch_0.Leading_Photon_MVA
-                            Subleading_Photon_E[0] = ch_0.Subleading_Photon_E
-                            Subleading_Photon_pt[0] = ch_0.Subleading_Photon_pt
-                            Subleading_Photon_eta[0] = ch_0.Subleading_Photon_eta
-                            Subleading_Photon_phi[0] = ch_0.Subleading_Photon_phi
-                            Subleading_Photon_MVA[0] = ch_0.Subleading_Photon_MVA
-                            #looser_lep0_pt[0] = ch_0.allElectrons_0_pt
-                            skimmed_tree.Fill()
-                        else: continue
-                    #==================================
-                    nentries = skimmed_tree.GetEntries()
-                    # Check ttree is loaded properly and values in ttree are good
-                    print "====== Check input values from tree ======"
-                    print "Skimmed tree entries: ", nentries
-                    for tentry in xrange(1,3):
-                        skimmed_tree.GetEntry(tentry)
-                        print "Test entry: ", tentry
-                        print "njets: ", skimmed_tree.N_goodJets
-                        print "weight: ", skimmed_tree.weight
-                    print "=========================================="
-                    print 'convert tree2array'
-                    chunk_arr = tree2array(tree=skimmed_tree)
-                    '''
                     chunk_arr = tree2array(tree=ch_0, selection=criteria)
                     chunk_df = pd.DataFrame(chunk_arr, columns=my_cols_list)
                     chunk_df['key']=key
@@ -538,9 +379,11 @@ def main():
         # Batch size = examples before updating weights (larger = faster training)
         # Epoch = One pass over data (useful for periodic logging and evaluation)
         class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
-        history3 = model3.fit(X_train,Y_train,validation_split=0.1,epochs=500,batch_size=100,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
+        history3 = model3.fit(X_train,Y_train,validation_split=0.1,epochs=100,batch_size=100,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
         histories.append(history3)
         labels.append(optimizer)
+
+        print "DEBUG: labels: ",labels
 
         # Make plot of loss function evolution
         Plotter.plot_training_progress_acc(histories, labels)
