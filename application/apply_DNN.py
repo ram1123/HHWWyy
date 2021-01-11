@@ -7,10 +7,6 @@ import optparse, json, argparse
 import ROOT
 import sys
 from array import array
-import commands
-# python looks here for its packages: $PYTHONPATH. Need to add path to $PYTHONPATH so python can find the required packages.
-sys.path.insert(0, '/afs/cern.ch/work/j/jthomasw/private/IHEP/HH/HHWWyy/')
-from plotting.plotter import plotter
 from ROOT import TFile, TTree, gDirectory
 from sklearn.model_selection import cross_val_score, train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler, Normalizer, MinMaxScaler, LabelEncoder
@@ -31,6 +27,10 @@ from keras.wrappers.scikit_learn import KerasClassifier
 from keras.callbacks import EarlyStopping
 from root_numpy import root2array, tree2array
 
+# python looks here for its packages: $PYTHONPATH. Need to add path to $PYTHONPATH so python can find the required packages.
+sys.path.insert(0, '/Users/joshuhathomas-wilsker/Documents/work/lxplus_remote/work/private/IHEP/HH/HHWWyy/')
+from plotting.plotter import plotter
+
 class apply_DNN(object):
 
     def __init__(self):
@@ -39,7 +39,9 @@ class apply_DNN(object):
     def getEOSlslist(self, directory, mask='', prepend='root://eosuser.cern.ch'):
         eos_dir = '/eos/user/%s ' % (directory)
         eos_cmd = 'eos ' + prepend + ' ls ' + eos_dir
-        out = commands.getoutput(eos_cmd)
+        #out = commands.getoutput(eos_cmd)
+        out = subprocess.run(['ls', '-l'], capture_output=True, text=True).stdout
+        print('out: ', out)
         full_list = []
         ## if input file was single root file:
         if directory.endswith('.root'):
@@ -47,21 +49,21 @@ class apply_DNN(object):
                 return [os.path.join(prepend,eos_dir).replace(" ","")]
         ## instead of only the file name append the string to open the file in ROOT
         for line in out.split('\n'):
-            print 'line: ', line
+            print('line: ', line)
             if len(line.split()) == 0: continue
             full_list.append(os.path.join(prepend,eos_dir,line).replace(" ",""))
         ## strip the list of files if required
         if mask != '':
             stripped_list = [x for x in full_list if mask in x]
             return stripped_list
-        print 'full files list from eos: ', full_list
+        print('full files list from eos: ', full_list)
         ## return
         return full_list
 
     def load_data(self, inputPath, variables, criteria, process):
         my_cols_list=variables
         data = pd.DataFrame(columns=my_cols_list)
-        if 'ggF_SM_WWgg' in process:
+        if 'HHWWgg-SL-SM-NLO-2017' in process:
             sampleNames=process
             fileNames = [process]
             target=1
@@ -70,208 +72,113 @@ class apply_DNN(object):
             fileNames = [process]
             target=0
 
-        print '<apply_DNN> Process: ' , process
-        if 'ggF_SM_WWgg' in process:
+        print('<apply_DNN> Process: ' , process)
+        if 'HHWWgg-SL-SM-NLO-2017' in process:
             treename=[
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_0',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_1',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_2',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_3',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_4'
+            'GluGluToHHTo2G2Qlnu_node_cHHH1_TuneCP5_PSWeights_13TeV_powheg_pythia8alesauva_2017_1_10_6_4_v0_RunIIFall17MiniAODv2_PU2017_12Apr2018_94X_mc2017_realistic_v14_v1_1c4bfc6d0b8215cc31448570160b99fdUSER',
             ]
         elif 'DiPhotonJetsBox_MGG' in process:
             treename=[
-            'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_0',
-            'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_1',
-            'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_2'
-            #'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_3',
-            #'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_4'
+            'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa',
             ]
         elif 'GJet_Pt-20toInf' in process:
             treename = [
-            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1',
-            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8',
             ]
         elif 'GJet_Pt-20to40' in process:
             treename = [
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1',
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8',
             ]
         elif 'GJet_Pt-40toInf' in process:
             treename=[
-            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1',
-            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
-            #'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_3',
-            #'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_4'
+            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8',
             ]
         elif 'DYJetsToLL_M-50_TuneCP5' in process:
             treename=[
-            'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8',
             ]
         elif 'TTGG' in process:
             treename=[
-            'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_0',
-            'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_1',
-            'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_2'
-            #'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_3',
-            #'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_4'
+            'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8',
             ]
         elif 'TTGJets' in process:
             treename=[
-            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0',
-            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_1',
-            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2'
-            #'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_3',
-            #'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_4'
+            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8',
             ]
         elif 'TTJets_HT-600to800' in process:
             treename=[
-            'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8',
             ]
         elif 'TTJets_HT-800to1200' in process:
             treename=[
-            'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8',
             ]
         elif 'TTJets_HT-1200to2500' in process:
             treename=[
-            'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8',
             ]
         elif 'TTJets_HT-2500toInf' in process:
             treename=[
-            'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8',
             ]
         elif 'W1JetsToLNu_LHEWpT_0-50' in process:
             treename=[
-            'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W1JetsToLNu_LHEWpT_50-150' in process:
             treename=[
-            'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W1JetsToLNu_LHEWpT_150-250' in process:
             treename=[
-            'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W1JetsToLNu_LHEWpT_250-400' in process:
             treename=[
-            'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W1JetsToLNu_LHEWpT_400-inf' in process:
             treename=[
-            'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W2JetsToLNu_LHEWpT_0-50' in process:
             treename=[
-            'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W2JetsToLNu_LHEWpT_50-150' in process:
             treename=[
-            'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W2JetsToLNu_LHEWpT_150-250' in process:
             treename=[
-            'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W2JetsToLNu_LHEWpT_250-400' in process:
             treename=[
-            'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W2JetsToLNu_LHEWpT_400-inf' in process:
             treename=[
-            'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8',
             ]
         elif 'W3JetsToLNu' in process:
             treename=[
-            'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8',
             ]
         elif 'W4JetsToLNu' in process:
             treename=[
-            'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8',
             ]
         elif 'ttHJetToGG' in process:
             treename=[
-            'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0',
-            'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_1',
-            'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2'
-            #'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_3',
-            #'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_4'
+            'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8',
             ]
+
         filename_fullpath = inputPath+"/"+process+".root"
-        print "<apply_DNN> Input file: ", filename_fullpath
+        print("<apply_DNN> Input file: ", filename_fullpath)
         tfile = ROOT.TFile(filename_fullpath)
         for tname in treename:
-            print '<apply_DNN> TTree: ', tname
+            print('<apply_DNN> TTree: ', tname)
             ch_0 = tfile.Get(tname)
             if ch_0 is not None :
                 #chunk_arr = tree2array(tree=ch_0, selection=criteria)
@@ -290,27 +197,24 @@ class apply_DNN(object):
                     chunk_df['classbalance'] = 1.0
                 data = data.append(chunk_df, ignore_index=True)
             else:
-                print "<apply_DNN> TTree == None"
+                print("<apply_DNN> TTree == None")
             ch_0.Delete()
         tfile.Close()
         return data
 
-    def baseline_model(self,num_variables,learn_rate=0.001,nClasses=1):
+    def baseline_model(self,num_variables,learn_rate=0.001):
         model = Sequential()
         model.add(Dense(32,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
-        model.add(Dense(16,activation='relu'))
+        #model.add(Dense(16,activation='relu'))
         model.add(Dense(8,activation='relu'))
         model.add(Dense(4,activation='relu'))
         model.add(Dense(1, activation='sigmoid'))
         model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
         return model
 
-    def load_trained_model(self, weights_path, num_variables, learn_rate, nClasses):
-        print '<apply_DNN> loading weights_path: ', weights_path
-        print '<apply_DNN> loading num_variables: ', num_variables
-        print '<apply_DNN> loading nClasses: ', nClasses
-        model = self.baseline_model(num_variables, learn_rate, nClasses)
-        model.load_weights(weights_path)
+    def load_trained_model(self, weights_path, num_variables, learn_rate):
+        print('<load_trained_model> weights_path: ', model_path)
+        model = keras.models.load_model(model_path, compile=False)
         return model
 
     def check_dir(self, dir):

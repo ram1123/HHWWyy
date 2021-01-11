@@ -4,8 +4,7 @@ import pandas
 import os
 import sklearn
 import subprocess
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import roc_curve, roc_auc_score, auc, confusion_matrix
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -124,7 +123,7 @@ class plotter(object):
         return
 
 
-    def ROC_sklearn(self, original_encoded_train_Y, result_probs_train, original_encoded_test_Y, result_probs_test, encoded_signal, pltname=''):
+    def ROC_sklearn(self, original_encoded_train_Y, result_probs_train, original_encoded_test_Y, result_probs_test, encoded_signal, pltname='', train_weights=[], test_weights=[]):
 
         # ROC curve and AUC calculated using absolute number of examples, not weighted events.
         self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10))
@@ -134,10 +133,12 @@ class plotter(object):
         SorB_class_test = []
         output_probs_train = []
         output_probs_test = []
+        training_event_weight = []
+        testing_event_weight = []
 
         # Loop over all training events
         for i in range(0,len(original_encoded_train_Y)):
-            # If training events truth value is target for the node assigned as signal by the variable encoded_signal append a 1
+            # If training events truth value is target for the node assigned as signal by the variable encoded_signal, append a 1
             # else assign as background and append a 0.
             if original_encoded_train_Y[i] == encoded_signal:
                 SorB_class_train.append(1)
@@ -145,29 +146,36 @@ class plotter(object):
                 SorB_class_train.append(0)
             # For ith event, get the probability that this event is from the signal process
             output_probs_train.append(result_probs_train[i])
-        # Loop over all testing events
+            training_event_weight.append(train_weights[i])
+
+        # Loop over all testing events and repeat procedure as for training
         for i in range(0,len(original_encoded_test_Y)):
             if original_encoded_test_Y[i] == encoded_signal:
                 SorB_class_test.append(1)
             else:
                 SorB_class_test.append(0)
             output_probs_test.append(result_probs_test[i])
+            testing_event_weight.append(test_weights[i])
 
         if len(original_encoded_test_Y) == 0:
             labels = ['SR applied']
         else:
             labels = ['TR train','TR test']
 
+        #print('# training_event_weight: ',len(training_event_weight))
+        #print('# testing_event_weight: ', len(testing_event_weight))
         if len(SorB_class_train) > 0:
-            # Create ROC curve - scan across the node distribution and calculate the true and false positive rate for given thresholds.
-            fpr, tpr, thresholds = roc_curve(SorB_class_train, output_probs_train)
+            # Create ROC curve - scan across the node distribution and calculate the true and false
+            # positive rate for given thresholds.
+            fpr, tpr, thresholds = roc_curve(SorB_class_train, output_probs_train, sample_weight=None, pos_label=1)
             auc_train_node_score = roc_auc_score(SorB_class_train, output_probs_train)
+
             # Plot the roc curve for the model
             # Interpolate between points of fpr and tpr on graph to get curve
             plt.plot(fpr, tpr, marker='.', markersize=8, label='%s (area = %0.2f)' % (labels[0],auc_train_node_score))
 
         if len(SorB_class_test) > 0:
-            fpr, tpr, thresholds = roc_curve(SorB_class_test, output_probs_test)
+            fpr, tpr, thresholds = roc_curve(SorB_class_test, output_probs_test, sample_weight=None, pos_label=1)
             auc_test_node_score = roc_auc_score(SorB_class_test, output_probs_test)
             # Plot the roc curve for the model
             plt.plot(fpr, tpr, marker='.', markersize=8, label='%s (area = %0.2f)' % (labels[1],auc_test_node_score))

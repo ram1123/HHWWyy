@@ -93,7 +93,7 @@ def GetSOverRootB(sig, bckg):
     return SOverRootB_hist
 
 def rebinHistograms(sample_info):
-    original_signal_hist = sample_info.get('ggF_SM_WWgg')[2]
+    original_signal_hist = sample_info.get('HHWWgg')[2]
     original_bckg_hist = sample_info.get('DiPhoton')[2]
     nBins = original_bckg_hist.GetNbinsX()
     x_bin_edges = []
@@ -108,7 +108,7 @@ def rebinHistograms(sample_info):
         for hist_key, info in sample_info.items():
             hist = info[2]
             if 'Data' in hist_key: continue
-            elif 'ggF_SM_WWgg' in hist_key:
+            elif 'HHWWgg' in hist_key:
                 cumulative_sig_entries = cumulative_sig_entries + hist.GetBinContent(x_bin_index)
                 combined_sig_hist.AddBinContent(x_bin_index,hist.GetBinContent(x_bin_index))
                 continue
@@ -275,7 +275,7 @@ def main():
     #additional_info = [inputs_directory]
 
     sample_info = OrderedDict([
-    ('ggF_SM_WWgg' , ['ggF_SM_WWgg_qqlnugg_Hadded_WithTaus',2]),
+    ('HHWWgg' , ['HHWWgg-SL-SM-NLO-2017',2]),
     ('DiPhoton' , ['DiPhotonJetsBox_MGG-80toInf_13TeV-Sherpa_Hadded',1]),
     ('GJet_Pt-20toInf' , ['GJet_Pt-20toInf_DoubleEMEnriched_MGG-40to80_TuneCP5_13TeV_Pythia8_Hadded',28]),
     ('GJet_Pt-20to40' , ['GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded',28]),
@@ -303,7 +303,7 @@ def main():
     ])
     #'Data' : ('Data_'+JESname+region)
 
-    input_name_HH = '%s/%s.root' % (classifier_samples_dir,sample_info.get('ggF_SM_WWgg')[0])
+    input_name_HH = '%s/%s.root' % (classifier_samples_dir,sample_info.get('HHWWgg')[0])
     input_file_HH = TFile.Open(input_name_HH)
     input_name_DiPhoton = '%s/%s.root' % (classifier_samples_dir,sample_info.get('DiPhoton')[0])
     input_file_DiPhoton = TFile.Open(input_name_DiPhoton)
@@ -355,9 +355,9 @@ def main():
     input_file_ttHJetToGG = TFile.Open(input_name_ttHJetToGG)
 
     hist_stack = ROOT.THStack()
-    histo_HH_name = 'histo_DNN_values_ggF_SM_WWgg_sample'
+    histo_HH_name = 'histo_DNN_values_HHWWgg_sample'
     histo_HH_ = input_file_HH.Get(histo_HH_name)
-    sample_info.get('ggF_SM_WWgg').insert(len(sample_info.get('ggF_SM_WWgg')),histo_HH_)
+    sample_info.get('HHWWgg').insert(len(sample_info.get('HHWWgg')),histo_HH_)
     histo_diphoton_name = 'histo_DNN_values_DiPhoton_sample'
     histo_diphoton_ = input_file_DiPhoton.Get(histo_diphoton_name)
     sample_info.get('DiPhoton').insert(len(sample_info.get('DiPhoton')),histo_diphoton_)
@@ -438,7 +438,7 @@ def main():
     legend = TLegend(0.7,  0.7,  0.9,  0.9)
     legend.SetNColumns(2)
 
-    signal_string = 'ggF_SM_WWgg'
+    signal_string = 'HHWWgg'
 
     plotted_samples = []
     for rebinned_hist_name, info in rebinned_histograms.items():

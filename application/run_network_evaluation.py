@@ -7,6 +7,7 @@ import pandas as pd
 import optparse, json, argparse, subprocess
 import ROOT
 import sys
+from keras.models import load_model
 from array import array
 sys.path.insert(0, '/afs/cern.ch/work/j/jthomasw/private/IHEP/ttHML/github/ttH_multilepton/keras-DNN/')
 from plotting.plotter import plotter
@@ -23,7 +24,7 @@ import os
 from os import environ
 
 def main():
-    print ''
+    print('')
     DNN_applier = apply_DNN()
 
     usage = 'usage: %prog [options]'
@@ -36,7 +37,7 @@ def main():
     processes = args.processName
     nClasses = 1
     modeldir=args.modeldir
-    print '<run_network_evaluation> Succesfully parsed arguments: processName= [%s], model directory= %s' %(processes, modeldir)
+    print('<run_network_evaluation> Succesfully parsed arguments: processName= [%s], model directory= %s' %(processes, modeldir))
 
     input_var_jsonFile = ''
 
@@ -53,7 +54,7 @@ def main():
 
     # Dictionary of filenames to be run over along with their keys.
     process_filename = {
-    'ggF_SM_WWgg' : ('ggF_SM_WWgg_qqlnugg_Hadded_WithTaus'),
+    'HHWWgg' : ('HHWWgg-SL-SM-NLO-2017'),
     'DiPhoton' : ('DiPhotonJetsBox_MGG-80toInf_13TeV-Sherpa_Hadded'),
     'GJet_Pt-20toInf' : ('GJet_Pt-20toInf_DoubleEMEnriched_MGG-40to80_TuneCP5_13TeV_Pythia8_Hadded'),
     'GJet_Pt-20to40' : ('GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded'),
@@ -85,13 +86,9 @@ def main():
     num_variables = len(training_columns)
 
     # Load trained model
-    optimizer = 'Adam'
     model_name_1 = os.path.join('../',modeldir,'model.h5')
-    print '<run_network_evaluation> Using Model: ', model_name_1
-    #model_1 = DNN_applier.load_trained_model(model_name_1, num_variables, optimizer='Adam', learn_rate=0.001, nClasses=1)
-    #model_1 = DNN_applier.load_trained_model(model_name_1, num_variables, optimizer='Adam', learn_rate=0.001, nClasses=1)
-    model_1 = DNN_applier.baseline_model(num_variables, 0.005, 1)
-    model_1.load_weights(model_name_1)
+    print('<run_network_evaluation> Using Model: ', model_name_1)
+    model_1 = load_model(model_name_1, compile=False)
     # Make instance of plotter class
     Plotter = plotter()
 
@@ -103,15 +100,15 @@ def main():
     succesfully_run_files = open("succesfully_run_files.txt","w+")
     # Now loop over all samples
     for process in processes:
-        print '<run_network_evaluation> Process: ', process
+        print('<run_network_evaluation> Process: ', process)
         current_sample_name = process_filename.get(process)
-        inputs_file_path = '/eos/user/a/atishelm/ntuples/HHWWgg_DataSignalMCnTuples/PromptPromptApplied/'
-        if 'ggF_SM_WWgg' in process:
+        inputs_file_path = '/Users/joshuhathomas-wilsker/Documents/work/lxplus_remote/work/private/IHEP/HH/HHWWyy/HHWWgg_DataSignalMCnTuples/2017/'
+        if 'HHWWgg' in process:
             inputs_file_path += 'Signal/'
         else:
             inputs_file_path += 'Bkgs/'
 
-        print '<run_network_evaluation> Input file directory: ', inputs_file_path
+        print('<run_network_evaluation> Input file directory: ', inputs_file_path)
 
         # Make final output directory
         samples_dir_w_appended_DNN = 'samples_w_DNN'
@@ -123,25 +120,26 @@ def main():
 
         dataframe_name = '%s/%s_dataframe.csv' %(samples_final_path_dir,process)
         if os.path.isfile(dataframe_name):
-            print '<run_network_evaluation> Loading %s . . . . ' % dataframe_name
+            print('<run_network_evaluation> Loading %s . . . . ' % dataframe_name)
             data = pandas.read_csv(dataframe_name)
         else:
-            print '<run_network_evaluation> Making *new* data file from %s . . . . ' % (inputs_file_path)
+            print('<run_network_evaluation> Making *new* data file from %s . . . . ' % (inputs_file_path))
             selection_criteria = '( ( (Leading_Photon_pt/CMS_hgg_mass) > 0.35 ) && ( (Subleading_Photon_pt/CMS_hgg_mass) > 0.25 ) && passbVeto==1 && ExOneLep==1 && N_goodJets>=1 )'
             data = DNN_applier.load_data(inputs_file_path,column_headers,selection_criteria,current_sample_name)
             if len(data) == 0 :
-                print '<run_network_evaluation> No data! Next file.'
+                print('<run_network_evaluation> No data! Next file.')
                 continue
-            print '<run_network_evaluation> Saving new data .csv file at %s . . . . ' % (dataframe_name)
-            print '<run_network_evaluation> Found events passing selection. Process name will be stored in succesfully_run_files.txt'
+            print('<run_network_evaluation> Saving new data .csv file at %s . . . . ' % (dataframe_name))
+            print('<run_network_evaluation> Found events passing selection. Process name will be stored in succesfully_run_files.txt')
             succesfully_run_files.write(process)
 
             data = data.replace(to_replace=-999.000000,value=-9.0)
             data.to_csv(dataframe_name, index=False)
 
-        nHH = len(data.ix[data.target.values == 1])
-        nbckg = len(data.ix[data.target.values == 0])
-        print "<run_network_evaluation> Total length of HH = %i, bckg = %i" % (nHH, nbckg)
+        nHH = len(data.iloc[data.target.values == 1])
+        nbckg = len(data.iloc[data.target.values == 0])
+
+        print("<run_network_evaluation> Total length of HH = %i, bckg = %i" % (nHH, nbckg))
 
         # Create dataset from dataframe to evaluate DNN
         X_test = data[training_columns].values
@@ -149,206 +147,109 @@ def main():
         nEvent = data['event']
 
         if len(result_probs_) < 1.:
-            print '<run_network_evaluation> Warning: only %s test values.' % (len(result_probs_))
-            print '<run_network_evaluation> Probabilities: ', result_probs_
-            print '<run_network_evaluation> Exiting now.'
+            print('<run_network_evaluation> Warning: only %s test values.' % (len(result_probs_)))
+            print('<run_network_evaluation> Probabilities: ', result_probs_)
+            print('<run_network_evaluation> Exiting now.')
             exit(0)
 
         # Dictionary:
         # key = event number : value = DNN output
         eventnum_resultsprob_dict = {}
         for index in range(len(nEvent)):
-            #print 'nEvent= %s , prob = %s' % (nEvent[index], result_probs_[index])
+            #print('nEvent= %s , prob = %s' % (nEvent[index], result_probs_[index])
             eventnum_resultsprob_dict[nEvent[index]] = result_probs_[index]
             model1_probs_.append(result_probs_[index])
 
+        print(current_sample_name)
         infile = inputs_file_path+current_sample_name+".root"
-        print '<run_network_evaluation> Input file: ', infile
+        print('<run_network_evaluation> Input file: ', infile)
 
         # Open file and load ttrees
         data_file = TFile.Open(infile)
-        if 'ggF_SM_WWgg' in current_sample_name:
-            treename=['GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_0',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_1',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_2',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_3',
-            'GluGluToHHTo_WWgg_qqlnu_nodeSM_13TeV_HHWWggTag_4'
-            ]
+        if 'HHWWgg' in current_sample_name:
+            treename=['GluGluToHHTo2G2Qlnu_node_cHHH1_TuneCP5_PSWeights_13TeV_powheg_pythia8alesauva_2017_1_10_6_4_v0_RunIIFall17MiniAODv2_PU2017_12Apr2018_94X_mc2017_realistic_v14_v1_1c4bfc6d0b8215cc31448570160b99fdUSER']
         elif 'DiPhotonJetsBox_MGG' in current_sample_name:
-            treename=['DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_0',
-            'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_1',
-            'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_2'
-            #'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_3',
-            #'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_4'
-            ]
+            treename=['DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa']
         elif 'GJet_Pt-20toInf' in current_sample_name:
             treename = [
-            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1',
-            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            'GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8'
             ]
         elif 'GJet_Pt-20to40' in current_sample_name:
             treename = [
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1',
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8'
             ]
         elif 'GJet_Pt-40toInf' in current_sample_name:
-            treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1',
-            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
-            #'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_3',
-            #'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_4'
+            treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8'
             ]
         elif 'DYJetsToLL_M-50_TuneCP5' in current_sample_name:
-            treename=['DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8'
             ]
         elif 'TTGG' in current_sample_name:
-            treename=['TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_0',
-            'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_1',
-            'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_2'
-            #'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_3',
-            #'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_4'
+            treename=['TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8'
             ]
         elif 'TTGJets' in current_sample_name:
-            treename=['TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0',
-            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_1',
-            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2'
-            #'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_3',
-            #'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_4'
+            treename=['TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8'
             ]
         elif 'TTJets_HT-600to800' in current_sample_name:
-            treename=['TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            treename=['TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8'
             ]
         elif 'TTJets_HT-800to1200' in current_sample_name:
-            treename=['TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            treename=['TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8'
             ]
         elif 'TTJets_HT-1200to2500' in current_sample_name:
-            treename=['TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            treename=['TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8'
             ]
         elif 'TTJets_HT-2500toInf' in current_sample_name:
-            treename=['TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            treename=['TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8'
             ]
         elif 'W1JetsToLNu_LHEWpT_0-50' in current_sample_name:
-            treename=['W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W1JetsToLNu_LHEWpT_50-150' in current_sample_name:
-            treename=['W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W1JetsToLNu_LHEWpT_150-250' in current_sample_name:
-            treename=['W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W1JetsToLNu_LHEWpT_250-400' in current_sample_name:
-            treename=['W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W1JetsToLNu_LHEWpT_400-inf' in current_sample_name:
-            treename=['W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W2JetsToLNu_LHEWpT_0-50' in current_sample_name:
-            treename=['W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W2JetsToLNu_LHEWpT_50-150' in current_sample_name:
-            treename=['W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W2JetsToLNu_LHEWpT_150-250' in current_sample_name:
-            treename=['W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W2JetsToLNu_LHEWpT_250-400' in current_sample_name:
-            treename=['W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W2JetsToLNu_LHEWpT_400-inf' in current_sample_name:
-            treename=['W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-            'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_1',
-            'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_2'
-            #'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_3',
-            #'W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_4'
+            treename=['W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8'
             ]
         elif 'W3JetsToLNu' in current_sample_name:
-            treename=['W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            treename=['W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8'
             ]
         elif 'W4JetsToLNu' in current_sample_name:
-            treename=['W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-            'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_1',
-            'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_2'
-            #'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_3',
-            #'W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_4'
+            treename=['W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8'
             ]
         elif 'ttHJetToGG' in current_sample_name:
-            treename=['ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0',
-            'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_1',
-            'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2'
-            #'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_3',
-            #'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_4'
+            treename=['ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8'
             ]
         else:
-            print '<run_network_evaluation> Warning: Process name not recognised. Exiting.'
+            print('<run_network_evaluation> Warning: Process name not recognised. Exiting.')
             exit(0)
 
         # Open each TTree in file and loop over events.
         # Append evaluated DNN score to DNN branch for each event.
         # Score assigned to event according to event number.
         for tname in treename:
-            print '<run_network_evaluation> TTree: ', tname
+            print('<run_network_evaluation> TTree: ', tname)
             data_tree = data_file.Get(tname)
             # Check if input file is zombie
             if data_file.IsZombie():
@@ -356,7 +257,7 @@ def main():
                 exit(0)
 
             output_file_name = '%s/%s.root' % (samples_final_path_dir,process_filename.get(process))
-            print '<run_network_evaluation> Creating new output .root file'
+            print('<run_network_evaluation> Creating new output .root file')
             output_file = TFile.Open(output_file_name,'RECREATE')
 
             # Clone empty tree
@@ -380,10 +281,10 @@ def main():
             temp_percentage_done = 0
 
             ######## Loop over ttree #########
-            print '<run_network_evaluation> data_tree # Entries: ', data_tree.GetEntries()
+            print('<run_network_evaluation> data_tree # Entries: ', data_tree.GetEntries())
             if output_tree.GetEntries() != 0:
-                print '<run_network_evaluation> output_tree # Entries: ', output_tree.GetEntries()
-                print 'This tree should be empty at this point!!!!! check cloning correctly'
+                print('<run_network_evaluation> output_tree # Entries: ', output_tree.GetEntries())
+                print('This tree should be empty at this point!!!!! check cloning correctly')
 
             for i in range(data_tree.GetEntries()):
                 DNN_evaluation[0]= -1.
@@ -391,7 +292,7 @@ def main():
                 percentage_done = int(100*float(i)/float(data_tree.GetEntries()))
                 if percentage_done % 10 == 0:
                     if percentage_done != temp_percentage_done:
-                        print percentage_done
+                        print(percentage_done)
                         temp_percentage_done = percentage_done
                 data_tree.GetEntry(i)
 
@@ -420,7 +321,7 @@ def main():
                 if pass_selection==0:
                         continue
 
-                if 'ggF_SM_WWgg' in process:
+                if 'HHWWgg' in process:
                     true_process.append(1)
                 else:
                     true_process.append(0)
