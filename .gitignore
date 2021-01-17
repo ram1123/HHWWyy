@@ -1,2 +1,6 @@
 *.pyc
 HHWWyyDNN_binary*/
+.DS_Store
+.ipynb_checkpoints/
+MVANtuples/
+*.json

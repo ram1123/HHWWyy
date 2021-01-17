@@ -12,10 +12,8 @@ import shap
 from array import array
 import time
 import pandas
-import pandas as pd
 import optparse, json, argparse, math
-import ROOT
-from ROOT import TTree
+import uproot
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import cross_val_score
@@ -50,7 +48,6 @@ from keras.callbacks import EarlyStopping
 from plotting.plotter import plotter
 from numpy.testing import assert_allclose
 from keras.callbacks import ModelCheckpoint
-from root_numpy import root2array, tree2array
 
 seed = 7
 np.random.seed(7)
@@ -66,9 +63,8 @@ def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch
 def load_data(inputPath,variables,criteria):
     # Load dataset to .csv format file
     my_cols_list=variables
-    data = pd.DataFrame(columns=my_cols_list)
     keys=['HH','bckg']
-    data = pd.DataFrame(columns=my_cols_list)
+    data = pandas.DataFrame(columns=my_cols_list)
     for key in keys :
         print('key: ', key)
         if 'HH' in key:
@@ -79,23 +75,34 @@ def load_data(inputPath,variables,criteria):
         else:
             sampleNames= key
             subdir_name = 'Backgrounds'
-            fileNames = ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8']#,'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded']#,'TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded']#,'TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded','TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded']
-            #fileNames = ['DiPhotonJetsBox_MGG-80toInf_13TeV-Sherpa_Hadded']
+            fileNames = ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
+                         'GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
+                         'QCD_Pt-30to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
+                         'QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
+                         'TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8'
+                        ]
             target=0
 
         for filen in fileNames:
             if 'ggF_SM_WWgg_qqqq_Hadded' in filen:
-                #treename=['tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_2','tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_1']
-                #treename=['tagsDumper/trees/ggF_SM_WWgg_qqlnugg_13TeV_HHWWggTag_1']
                 treename=['tagsDumper/trees/GluGluToHHTo_WWgg_qqqq_nodeSM_13TeV_HHWWggTag_2']
                 process_ID = 'HH'
+            elif 'QCD_Pt-30to40' in filen:
+                treename=['tagsDumper/trees/QCD_Pt_30to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                process_ID = 'QCD'
+            elif 'QCD_Pt-40toInf' in filen:
+                treename=['tagsDumper/trees/QCD_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                process_ID = 'QCD'
             elif 'DiPhotonJetsBox_MGG' in filen:
                 treename=['DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa',
                 ]
                 process_ID = 'DiPhoton'
+            elif 'GJet_Pt-20to40' in filen:
+                treename=['tagsDumper/trees/GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                process_ID = 'GJet'
             elif 'GJet_Pt-40toInf' in filen:
-                treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8',
-                ]
+                # treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8']
+                treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
                 process_ID = 'GJet'
             elif 'DYJetsToLL_M-50_TuneCP5' in filen:
                 treename=['DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8',
@@ -106,8 +113,7 @@ def load_data(inputPath,variables,criteria):
                 ]
                 process_ID = 'TTGG'
             elif 'TTGJets' in filen:
-                treename=['TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8',
-                ]
+                treename=['tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2']
                 process_ID = 'TTGJets'
             elif 'TTJets_HT-600to800' in filen:
                 treename=['TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8',
@@ -181,30 +187,43 @@ def load_data(inputPath,variables,criteria):
             fileName = os.path.join(subdir_name,filen)
             filename_fullpath = inputPath+"/"+fileName+".root"
             print("Input file: ", filename_fullpath)
-            tfile = ROOT.TFile(filename_fullpath)
-            for tname in treename:
-                ch_0 = tfile.Get(tname)
-                if ch_0 is not None :
-                    # Create dataframe for ttree
-                    chunk_arr = tree2array(tree=ch_0, branches=my_cols_list[:-5], selection=criteria)
-                    #chunk_arr = tree2array(tree=ch_0, branches=my_cols_list[:-5], selection=criteria, start=0, stop=500)
-                    # This dataframe will be a chunk of the final total dataframe used in training
-                    chunk_df = pd.DataFrame(chunk_arr, columns=my_cols_list)
-                    # Add values for the process defined columns.
-                    # (i.e. the values that do not change for a given process).
-                    chunk_df['key']=key
-                    chunk_df['target']=target
-                    chunk_df['weight']=chunk_df["weight"]
-                    chunk_df['process_ID']=process_ID
-                    chunk_df['classweight']=1.0
-                    chunk_df['unweighted'] = 1.0
-                    # Append this chunk to the 'total' dataframe
-                    data = data.append(chunk_df, ignore_index=True)
-                else:
-                    print("TTree == None")
-                ch_0.Delete()
-            tfile.Close()
-        if len(data) == 0 : continue
+            print("treename: ", treename[0])
+
+            tree = uproot.open(filename_fullpath)[treename[0]]
+            chunk_df_all = tree.arrays(cut=criteria,library='pd')
+            chunk_df     = tree.arrays(filter_name=my_cols_list,cut=criteria,library='pd')
+            # print(chunk_df)
+
+            # my_cols_list=set(my_cols_list)
+            # for arrs in tree.iterate(my_cols_list,library='pd'):
+                # print(arrs)
+
+            chunk_df['weight'] = chunk_df_all['weight']
+            chunk_df['unweighted'] = 1.0
+            chunk_df['target'] = target
+            chunk_df['key'] = key
+            chunk_df['classweight']=1.0
+            chunk_df['process_ID']=process_ID
+            # print("Shape (Before duplicate removal):")
+            # print("\tchunk_df: ",chunk_df.shape)
+            # print("\tdata: ",data.shape)
+            # Duplicate removal
+            chunk_df = chunk_df.loc[:,~chunk_df.columns.duplicated()]
+            data     = data.loc[:,~data.columns.duplicated()]
+            # print("Shape (After duplicate removal):")
+            # print("\tchunk_df: ",chunk_df.shape)
+            # print("\tdata: ",data.shape)
+            # chunk_df.reset_index()
+            # data.reset_index()
+            # print("Shape (After reset index):")
+            # print("\tchunk_df: ",chunk_df.shape)
+            # print("\tdata: ",data.shape)
+            data = data.append(chunk_df, ignore_index=True)
+            # print(data)
+            if len(data) == 0 : continue
+            # print("Shape (before return)")
+            # print("\tchunk_df: ",chunk_df.shape)
+            # print("\tdata: ",data.shape)
 
     return data
 
@@ -215,9 +234,12 @@ def load_trained_model(model_path):
 
 def baseline_model(num_variables,learn_rate=0.001):
     model = Sequential()
-    model.add(Dense(32,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
-    #model.add(Dense(16,activation='relu'))
-    model.add(Dense(8,activation='relu'))
+    model.add(Dense(100,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    model.add(Dropout(0.2))
+    model.add(Dense(80,activation='relu'))
+    model.add(Dropout(0.2))
+    model.add(Dense(40,activation='relu'))
+    model.add(Dense(20,activation='relu'))
     model.add(Dense(4,activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
@@ -244,10 +266,10 @@ def check_dir(dir):
 
 def main():
     print('Using Keras version: ', keras.__version__)
-
     usage = 'usage: %prog [options]'
     parser = argparse.ArgumentParser(usage)
     parser.add_argument('-t', '--train_model', dest='train_model', help='Option to train model or simply make diagnostic plots (0=False, 1=True)', default=1, type=int)
+    parser.add_argument('-l', '--load_dataset', dest='load_dataset', help='Option to load dataset from root file (0=False, 1=True)', default=0, type=int)
     parser.add_argument('-s', '--suff', dest='suffix', help='Option to choose suffix for training', default='', type=str)
     parser.add_argument('-p', '--para', dest='hyp_param_scan', help='Option to run hyper-parameter scan', default=0, type=int)
     parser.add_argument('-i', '--inputs_file_path', dest='inputs_file_path', help='Path to directory containing directories \'Bkgs\' and \'Signal\' which contain background and signal ntuples respectively.', default='', type=str)
@@ -256,7 +278,7 @@ def main():
     suffix = args.suffix
 
     # Create instance of the input files directory
-    inputs_file_path = 'HHWWgg_DataSignalMCnTuples/2017/'
+    inputs_file_path = '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples/'
 
     hyp_param_scan=args.hyp_param_scan
     # Set model hyper-parameters
@@ -286,9 +308,7 @@ def main():
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
     input_var_jsonFile = open('input_variables.json','r')
-    selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) && ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) && passbVeto==1 && ExOneLep==1 && N_goodJets>=1)'
-    # selection_criteria = '(AtLeast4GoodJets0Lep==1)'
-    # selection_criteria = '(passPhotonSels==1 && passbVeto==1 && ExOneLep==1 && goodJets==1)'
+    selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) & (passbVeto==1) & (ExOneLep==0) & (N_goodJets>=4))'
     #selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) && ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) && passbVeto==1 && ExOneLep==1 && N_goodJets>=1)'
 
     # Load Variables from .json
@@ -305,16 +325,16 @@ def main():
     column_headers.append('classweight')
     column_headers.append('process_ID')
 
-    # Create instance of the input files directory
-    #inputs_file_path = '/afs/cern.ch/work/a/atishelm/public/ForJosh/2017_DataMC_ntuples_moreVars'
-    inputs_file_path = '/eos/user/r/rasharma/post_doc_ihep/double-higgs/ntuples/September29/MVANtuples'
-    #inputs_file_path = '/eos/user/a/atishelm/ntuples/HHWWgg_DataSignalMCnTuples/PromptPromptApplied/'
-    #inputs_file_path = 'PromptPromptApplied/'
-
     # Load ttree into .csv including all variables listed in column_headers
     print('<train-DNN> Input file path: ', inputs_file_path)
     outputdataframe_name = '%s/output_dataframe.csv' %(output_directory)
-    if os.path.isfile(outputdataframe_name):
+    print('outputdataframe_name: ',outputdataframe_name)
+    if os.path.isfile(outputdataframe_name) and (args.load_dataset == 0):
+        """Load dataset or not
+
+        If one changes the input training variables then we have to reload dataset.
+        Don't use the previous .csv file if you update the list of input variables.
+        """
         data = pandas.read_csv(outputdataframe_name)
         print('<train-DNN> Loading data .csv from: %s . . . . ' % (outputdataframe_name))
     else:
@@ -340,7 +360,6 @@ def main():
     print('<train-DNN> Training dataset shape: ', traindataset.shape)
     print('<train-DNN> Validation dataset shape: ', valdataset.shape)
 
-
     # Event weights
     weights_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'weight']
     weights_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'weight']
@@ -362,7 +381,7 @@ def main():
     ttHsum_weighted= sum(weights_for_ttH)
     DYsum_weighted= sum(weights_for_DY)
     #bckgsum_weighted = DiPhotonsum_weighted+WJetssum_weighted+ttHsum_weighted
-    bckgsum_weighted = DiPhotonsum_weighted+WJetssum_weighted
+    bckgsum_weighted = GJetsum_weighted + DiPhotonsum_weighted+TTGGsum_weighted+TTGJetssum_weighted+TTJetssum_weighted+WJetssum_weighted+ttHsum_weighted+DYsum_weighted
 
     nevents_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'unweighted']
     nevents_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'unweighted']
@@ -385,8 +404,7 @@ def main():
     DYsum_unweighted= sum(nevents_for_DY)
 
     #bckgsum_unweighted = DiPhotonsum_unweighted+WJetssum_unweighted+ttHsum_unweighted
-    bckgsum_unweighted = DiPhotonsum_unweighted+WJetssum_unweighted
-
+    bckgsum_unweighted = GJetsum_unweighted + DiPhotonsum_unweighted + TTGGsum_unweighted + TTGJetssum_unweighted + TTJetssum_unweighted + WJetssum_unweighted + ttHsum_unweighted + DYsum_unweighted
 
     if weights=='BalanceYields':
         print('HHsum_weighted= ' , HHsum_weighted)
@@ -447,26 +465,6 @@ def main():
     # Create dataframe containing input features only (for correlation matrix)
     train_df = data.iloc[:traindataset.shape[0]]
 
-    ## Input Variable Correlation plot
-    correlation_plot_file_name = 'correlation_plot.png'
-    Plotter.correlation_matrix(train_df)
-    Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name)
-
-    ####################################################################################
-    # Weights applied during training. You will also need to update the class weights if
-    # you are going to change the event weights applied. Introduce class weights and any
-    # event weight you want to use here.
-    #trainingweights = traindataset.loc[:,'classbalance']#*traindataset.loc[:,'weight']
-    #trainingweights = np.array(trainingweights)
-
-    # Temp hack to be able to change class weights without remaking dataframe
-    #for inde in xrange(len(trainingweights)):
-    #    newweight = 13243.0/6306.0
-    #    trainingweights[inde]= newweight
-    #print 'training event weight = ', trainingweights[0]
-
-    # Event weights calculation so we can correctly apply event weights to diagnostic plots.
-    # use seperate list because we don't want to apply class weights in plots.
     # Event weights if wanted
     train_weights = traindataset['weight'].values
     test_weights = valdataset['weight'].values
@@ -479,7 +477,7 @@ def main():
     trainingweights = np.array(trainingweights)
 
     ## Input Variable Correlation plot
-    correlation_plot_file_name = 'correlation_plot.pdf'
+    correlation_plot_file_name = 'correlation_plot.png'
     Plotter.correlation_matrix(train_df)
     Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name)
 
@@ -556,10 +554,8 @@ def main():
     with open(model_json_name,'w') as json_file:
         json_file.write(model_json)
     model.summary()
-    model_schematic_name = os.path.join(output_directory,'model_schematic.eps')
-    print "DEBUG: ",model_schematic_name
+    model_schematic_name = os.path.join(output_directory,'model_schematic.png')
     plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_names=True)
-    # plot_model(model, to_file='model_schematic.eps', show_shapes=True, show_layer_names=True)
 
     # Initialise output directory.
     Plotter.plots_directory = plots_dir
@@ -578,23 +574,6 @@ def main():
 
     # Make overfitting plots of output nodes
     Plotter.binary_overfitting(model, Y_train, Y_test, result_probs, result_probs_test, plots_dir, train_weights, test_weights)
-    print "DEBUG: Y_train shape: ",Y_train.shape
-
-    # # Get true process integers for training dataset
-    # original_encoded_train_Y = []
-    # for i in xrange(len(result_probs)):
-    #     if Y_train[i][0] == 1:
-    #         original_encoded_train_Y.append(0)
-    #     if Y_train[i][1] == 1:
-    #         original_encoded_train_Y.append(1)
-    #     if Y_train[i][2] == 1:
-    #         original_encoded_train_Y.append(2)
-    #     if Y_train[i][3] == 1:
-    #         original_encoded_train_Y.append(3)
-
-    # Get true class values for testing dataset
-    # result_classes_test = newencoder.inverse_transform(result_classes_test)
-    # result_classes_train = newencoder.inverse_transform(result_classes)
     e = shap.DeepExplainer(model, X_train[:400, ])
     shap_values = e.shap_values(X_test[:400, ])
     Plotter.plot_dot(title="DeepExplainer_sigmoid_y0", x=X_test[:400, ], shap_values=shap_values, column_headers=column_headers)

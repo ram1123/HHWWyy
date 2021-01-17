@@ -3,12 +3,25 @@
 ### Institutes: IHEP Beijing, CERN
 Package used to train deep neural network for HH->WWyy analysis.
 
+```bash
+python train-BinaryDNN.py -t 1 -s test -i /Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples -l 1
+```
+
 ## Environment settings
 Several non-standard libraries must be present in your python environment.
 To ensure they are present I suggest cloning this library onto a machine/area
 for which you have root access. Then setup a conda environment for python 3.7
 ```
 conda create -n <env_title> python=3.7 anaconda
+```
+
+```
+conda create -n py3 python=3.7 anaconda
+```
+
+
+```
+conda activate py3
 ```
 
 Check the python version you are now using:
