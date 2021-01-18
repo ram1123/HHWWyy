@@ -4,3 +4,5 @@ HHWWyyDNN_binary*/
 .ipynb_checkpoints/
 MVANtuples/
 *.json
+logs/
+hyp*.txt

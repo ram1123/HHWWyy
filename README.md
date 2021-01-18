@@ -3,10 +3,6 @@
 ### Institutes: IHEP Beijing, CERN
 Package used to train deep neural network for HH->WWyy analysis.
 
-```bash
-python train-BinaryDNN.py -t 1 -s test -i /Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples -l 1
-```
-
 ## Environment settings
 Several non-standard libraries must be present in your python environment.
 To ensure they are present I suggest cloning this library onto a machine/area
@@ -34,7 +30,7 @@ Check the following libraries are present:
 - python 3.7
 - shap
 - keras
-- tensorflow
+- tensorflow 2.2
 - root
 - root_numpy
 - numpy
@@ -45,6 +41,30 @@ you haven't got in the enviroment setup:
 ```
 conda install <new_library>
 ```
+
+```bash
+conda create -n tfv24 tensorflow
+conda activate tfv24
+# by default conda installed tf2.0. 
+# So, to upgrade tensorflow to the latest version run below command 
+# pip install tensorflow --upgrade
+pip install tensorflow=2.2
+conda install -c anaconda pydot
+conda install -c anaconda seaborn
+conda install -c conda-forge shap
+conda install -c conda-forge uproot uproot-base
+# conda install -c conda-forge matplotlib
+conda install -c anaconda keras
+```
+
+* ***With tensorflow v2.4 shap is not working. It gives error saying "AttributeError: 'KerasTensor' object has no attribute 'graph'". Till now it seems that there is no solution for this. This issue is mentioned here: https://github.com/slundberg/shap/issues/1694 .***
+
+* while downgrading tensorflow 2.4 to 2.2 I got following error/waring:
+   ```
+   ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+   shap 0.37.0 requires slicer==0.0.3, but you have slicer 0.0.7 which is incompatible.
+   ```
+   * But downgrading works. 
 
 ## Basic training
 Running the code:

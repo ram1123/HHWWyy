@@ -5,16 +5,19 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Code to train deep neural network
 # for HH->WWyy analysis.
+
 import matplotlib.pyplot as plt
 import numpy as np
+from datetime import datetime
+from numpy.testing import assert_allclose
 import pickle
-import shap
 from array import array
 import time
 import pandas
 import optparse, json, argparse, math
-import uproot
-import tensorflow as tf
+import os
+from os import environ
+
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
@@ -22,32 +25,33 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import MinMaxScaler
-#from sklearn.utils import class_weight
+from sklearn.utils import class_weight
 from sklearn.metrics import log_loss
-import os
-from os import environ
-os.environ['KERAS_BACKEND'] = 'tensorflow'
-import keras
-from keras import backend as K
-from keras.utils import np_utils
-from keras.utils import plot_model
-from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.layers.core import Activation
-from keras.layers.core import Flatten
-from keras.optimizers import Adam
-from keras.optimizers import Adamax
-from keras.optimizers import Nadam
-from keras.optimizers import Adadelta
-from keras.optimizers import Adagrad
-from keras.layers import Dropout
-from keras.layers import BatchNormalization
-from keras.models import load_model
-from keras.wrappers.scikit_learn import KerasClassifier
-from keras.callbacks import EarlyStopping
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Activation
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adamax
+from tensorflow.keras.optimizers import Nadam
+from tensorflow.keras.optimizers import Adadelta
+from tensorflow.keras.optimizers import Adagrad
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint
+
+import shap
+import uproot
+
 from plotting.plotter import plotter
-from numpy.testing import assert_allclose
-from keras.callbacks import ModelCheckpoint
 
 seed = 7
 np.random.seed(7)
@@ -234,13 +238,12 @@ def load_trained_model(model_path):
 
 def baseline_model(num_variables,learn_rate=0.001):
     model = Sequential()
-    model.add(Dense(100,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(80,activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(40,activation='relu'))
-    model.add(Dense(20,activation='relu'))
-    model.add(Dense(4,activation='relu'))
+    model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    # model.add(Dropout(0.2))
+    model.add(Dense(26,activation='relu'))
+    # model.add(Dropout(0.2))
+    model.add(Dense(13,activation='relu'))
+    # model.add(Dense(6,activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
     optimizer=Nadam(lr=learn_rate)
@@ -249,10 +252,10 @@ def baseline_model(num_variables,learn_rate=0.001):
 
 def gscv_model(learn_rate=0.001):
     model = Sequential()
-    model.add(Dense(32,input_dim=29,kernel_initializer='glorot_normal',activation='relu'))
-    model.add(Dense(16,activation='relu'))
-    model.add(Dense(8,activation='relu'))
-    model.add(Dense(4,activation='relu'))
+    model.add(Dense(13,input_dim=13,kernel_initializer='glorot_normal',activation='relu'))
+    # model.add(Dense(26,activation='relu'))
+    # model.add(Dense(13,activation='relu'))
+    # model.add(Dense(4,activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
     optimizer=Nadam(lr=learn_rate)
@@ -291,9 +294,9 @@ def main():
         epochs = 200
         batch_size=200
     if weights == 'BalanceYields':
-        learn_rate = 0.0001
-        epochs = 200
-        batch_size=400
+        learn_rate = 0.00001
+        epochs = 100
+        batch_size=700
 
     # Create instance of output directory where all results are saved.
     output_directory = 'HHWWyyDNN_binary_%s_%s/' % (suffix,weights)
@@ -498,11 +501,11 @@ def main():
             hyp_param_scan_name = 'hyp_param_scan_results.txt'
             hyp_param_scan_results = open(hyp_param_scan_name,'a')
             time_str = str(time.localtime())+'\n'
-            hyp_param_scan_results.write(time_str)
-            hyp_param_scan_results.write(weights)
-            learn_rates=[0.00001, 0.0001]
-            epochs = [150,200]
-            batch_size = [400,500]
+            hyp_param_scan_results.write(time_str+'\n')
+            hyp_param_scan_results.write(weights+'\n')
+            learn_rates=[0.00001, 0.01]
+            epochs = [100,300]
+            batch_size = [100,700]
             param_grid = dict(learn_rate=learn_rates,epochs=epochs,batch_size=batch_size)
             model = KerasClassifier(build_fn=gscv_model,verbose=0)
             grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
@@ -521,11 +524,14 @@ def main():
             early_stopping_monitor = EarlyStopping(patience=30, monitor='val_loss', verbose=1)
             model = baseline_model(num_variables, learn_rate=learn_rate)
 
+            logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+            tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+
             # Fit the model
             # Batch size = examples before updating weights (larger = faster training)
             # Epoch = One pass over data (useful for periodic logging and evaluation)
             #class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
-            history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
+            history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor,tensorboard_callback])
             histories.append(history)
             labels.append(optimizer)
             # Make plot of loss function evolution
@@ -538,11 +544,13 @@ def main():
 
     # Node probabilities for training sample events
     result_probs = model.predict(np.array(X_train))
-    result_classes = model.predict_classes(np.array(X_train))
+    # result_classes = model.predict_classes(np.array(X_train)) # deprecated. Should used next one.
+    result_classes = np.argmax(model.predict(np.array(X_train)), axis=-1)
 
     # Node probabilities for testing sample events
     result_probs_test = model.predict(np.array(X_test))
-    result_classes_test = model.predict_classes(np.array(X_test))
+    # result_classes_test = model.predict_classes(np.array(X_test)) # deprecated. Should used next one.
+    result_classes_test = np.argmax(model.predict(np.array(X_test)), axis=-1)
 
     # Store model in file
     model_output_name = os.path.join(output_directory,'model.h5')
@@ -574,10 +582,12 @@ def main():
 
     # Make overfitting plots of output nodes
     Plotter.binary_overfitting(model, Y_train, Y_test, result_probs, result_probs_test, plots_dir, train_weights, test_weights)
+
     e = shap.DeepExplainer(model, X_train[:400, ])
     shap_values = e.shap_values(X_test[:400, ])
     Plotter.plot_dot(title="DeepExplainer_sigmoid_y0", x=X_test[:400, ], shap_values=shap_values, column_headers=column_headers)
     Plotter.plot_dot_bar(title="DeepExplainer_Bar_sigmoid_y0", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
+
     #e = shap.GradientExplainer(model, X_train[:100, ])
     #shap_values = e.shap_values(X_test[:100, ])
     #Plotter.plot_dot(title="GradientExplainer_sigmoid_y0", x=X_test[:100, ], shap_values=shap_values, column_headers=column_headers)
