@@ -253,8 +253,8 @@ def baseline_model(num_variables,learn_rate=0.001):
 def gscv_model(learn_rate=0.001):
     model = Sequential()
     model.add(Dense(13,input_dim=13,kernel_initializer='glorot_normal',activation='relu'))
-    # model.add(Dense(26,activation='relu'))
-    # model.add(Dense(13,activation='relu'))
+    model.add(Dense(26,activation='relu'))
+    model.add(Dense(13,activation='relu'))
     # model.add(Dense(4,activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
@@ -294,9 +294,9 @@ def main():
         epochs = 200
         batch_size=200
     if weights == 'BalanceYields':
-        learn_rate = 0.00001
+        learn_rate = 1e-05
         epochs = 100
-        batch_size=700
+        batch_size=100
 
     # Create instance of output directory where all results are saved.
     output_directory = 'HHWWyyDNN_binary_%s_%s/' % (suffix,weights)

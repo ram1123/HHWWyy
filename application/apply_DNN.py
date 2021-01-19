@@ -28,7 +28,7 @@ from keras.callbacks import EarlyStopping
 from root_numpy import root2array, tree2array
 
 # python looks here for its packages: $PYTHONPATH. Need to add path to $PYTHONPATH so python can find the required packages.
-sys.path.insert(0, '/Users/joshuhathomas-wilsker/Documents/work/lxplus_remote/work/private/IHEP/HH/HHWWyy/')
+sys.path.insert(0, '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/')
 from plotting.plotter import plotter
 
 class apply_DNN(object):
@@ -77,6 +77,10 @@ class apply_DNN(object):
             treename=[
             'GluGluToHHTo2G2Qlnu_node_cHHH1_TuneCP5_PSWeights_13TeV_powheg_pythia8alesauva_2017_1_10_6_4_v0_RunIIFall17MiniAODv2_PU2017_12Apr2018_94X_mc2017_realistic_v14_v1_1c4bfc6d0b8215cc31448570160b99fdUSER',
             ]
+        if 'ggF_SM_WWgg_qqqq_Hadded' in process:
+            treename=[
+            'tagsDumper/trees/GluGluToHHTo_WWgg_qqqq_nodeSM_13TeV_HHWWggTag_2'
+            ]
         elif 'DiPhotonJetsBox_MGG' in process:
             treename=[
             'DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa',
@@ -87,11 +91,11 @@ class apply_DNN(object):
             ]
         elif 'GJet_Pt-20to40' in process:
             treename = [
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8',
+            'tagsDumper/trees/GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2',
             ]
         elif 'GJet_Pt-40toInf' in process:
             treename=[
-            'GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8',
+            'tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2',
             ]
         elif 'DYJetsToLL_M-50_TuneCP5' in process:
             treename=[
@@ -103,7 +107,7 @@ class apply_DNN(object):
             ]
         elif 'TTGJets' in process:
             treename=[
-            'TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8',
+            'tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2',
             ]
         elif 'TTJets_HT-600to800' in process:
             treename=[
@@ -172,6 +176,14 @@ class apply_DNN(object):
         elif 'ttHJetToGG' in process:
             treename=[
             'ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8',
+            ]
+        elif 'QCD_Pt-30to40' in process:
+            treename=[
+            'tagsDumper/trees/QCD_Pt_30to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            ]
+        elif 'QCD_Pt-40toInf' in process:
+            treename=[
+            'tagsDumper/trees/QCD_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
             ]
 
         filename_fullpath = inputPath+"/"+process+".root"

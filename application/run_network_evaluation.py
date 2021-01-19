@@ -7,9 +7,10 @@ import pandas as pd
 import optparse, json, argparse, subprocess
 import ROOT
 import sys
-from keras.models import load_model
+import tensorflow as tf
+from tensorflow.keras.models import load_model
 from array import array
-sys.path.insert(0, '/afs/cern.ch/work/j/jthomasw/private/IHEP/ttHML/github/ttH_multilepton/keras-DNN/')
+sys.path.insert(0, '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/')
 from plotting.plotter import plotter
 from ROOT import TFile, TTree, gDirectory, gPad
 from sklearn.preprocessing import LabelEncoder
@@ -54,13 +55,13 @@ def main():
 
     # Dictionary of filenames to be run over along with their keys.
     process_filename = {
-    'HHWWgg' : ('HHWWgg-SL-SM-NLO-2017'),
+    'HHWWgg' : ('ggF_SM_WWgg_qqqq_Hadded'),
     'DiPhoton' : ('DiPhotonJetsBox_MGG-80toInf_13TeV-Sherpa_Hadded'),
     'GJet_Pt-20toInf' : ('GJet_Pt-20toInf_DoubleEMEnriched_MGG-40to80_TuneCP5_13TeV_Pythia8_Hadded'),
-    'GJet_Pt-20to40' : ('GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded'),
-    'GJet_Pt-40toInf' : ('GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded') ,
+    'GJet_Pt-20to40' : ('GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8'),
+    'GJet_Pt-40toInf' : ('GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8') ,
     'DYJetsToLL_M-50' : ('DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8_Hadded'),
-    'TTGJets' : ('TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded'),
+    'TTGJets' : ('TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8'),
     'TTGG' : ('TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded'),
     'TTJets_HT-600to800' : ('TTJets_HT-600to800_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded'),
     'TTJets_HT-800to1200' : ('TTJets_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded'),
@@ -78,7 +79,9 @@ def main():
     'W2JetsToLNu_LHEWpT_400-inf' : ('W2JetsToLNu_LHEWpT_400-inf_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded'),
     'W3JetsToLNu' : ('W3JetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded'),
     'W4JetsToLNu' : ('W4JetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded'),
-    'ttHJetToGG' : ('ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_Hadded')
+    'ttHJetToGG' : ('ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_Hadded'),
+    'QCD_Pt-30to40': ('QCD_Pt-30to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8'),
+    'QCD_Pt-40toInf': ('QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8')
     #'Data' : ('Data_'+JESname+region)
     }
 
@@ -102,11 +105,11 @@ def main():
     for process in processes:
         print('<run_network_evaluation> Process: ', process)
         current_sample_name = process_filename.get(process)
-        inputs_file_path = '/Users/joshuhathomas-wilsker/Documents/work/lxplus_remote/work/private/IHEP/HH/HHWWyy/HHWWgg_DataSignalMCnTuples/2017/'
+        inputs_file_path = '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples/'
         if 'HHWWgg' in process:
             inputs_file_path += 'Signal/'
         else:
-            inputs_file_path += 'Bkgs/'
+            inputs_file_path += 'Backgrounds/'
 
         print('<run_network_evaluation> Input file directory: ', inputs_file_path)
 
@@ -124,7 +127,7 @@ def main():
             data = pandas.read_csv(dataframe_name)
         else:
             print('<run_network_evaluation> Making *new* data file from %s . . . . ' % (inputs_file_path))
-            selection_criteria = '( ( (Leading_Photon_pt/CMS_hgg_mass) > 0.35 ) && ( (Subleading_Photon_pt/CMS_hgg_mass) > 0.25 ) && passbVeto==1 && ExOneLep==1 && N_goodJets>=1 )'
+            selection_criteria = '( ( (Leading_Photon_pt/CMS_hgg_mass) > 0.35 ) && ( (Subleading_Photon_pt/CMS_hgg_mass) > 0.25 ) && passbVeto==1 && ExOneLep==0 && N_goodJets>=4 )'
             data = DNN_applier.load_data(inputs_file_path,column_headers,selection_criteria,current_sample_name)
             if len(data) == 0 :
                 print('<run_network_evaluation> No data! Next file.')
@@ -166,8 +169,8 @@ def main():
 
         # Open file and load ttrees
         data_file = TFile.Open(infile)
-        if 'HHWWgg' in current_sample_name:
-            treename=['GluGluToHHTo2G2Qlnu_node_cHHH1_TuneCP5_PSWeights_13TeV_powheg_pythia8alesauva_2017_1_10_6_4_v0_RunIIFall17MiniAODv2_PU2017_12Apr2018_94X_mc2017_realistic_v14_v1_1c4bfc6d0b8215cc31448570160b99fdUSER']
+        if 'ggF_SM_WWgg' in current_sample_name:
+            treename=['tagsDumper/trees/GluGluToHHTo_WWgg_qqqq_nodeSM_13TeV_HHWWggTag_2']
         elif 'DiPhotonJetsBox_MGG' in current_sample_name:
             treename=['DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa']
         elif 'GJet_Pt-20toInf' in current_sample_name:
@@ -176,10 +179,10 @@ def main():
             ]
         elif 'GJet_Pt-20to40' in current_sample_name:
             treename = [
-            'GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8'
+            'tagsDumper/trees/GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
             ]
         elif 'GJet_Pt-40toInf' in current_sample_name:
-            treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8'
+            treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
             ]
         elif 'DYJetsToLL_M-50_TuneCP5' in current_sample_name:
             treename=['DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8'
@@ -188,7 +191,7 @@ def main():
             treename=['TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8'
             ]
         elif 'TTGJets' in current_sample_name:
-            treename=['TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8'
+            treename=['tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_2'
             ]
         elif 'TTJets_HT-600to800' in current_sample_name:
             treename=['TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8'
@@ -241,6 +244,14 @@ def main():
         elif 'ttHJetToGG' in current_sample_name:
             treename=['ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8'
             ]
+        elif 'QCD_Pt-30to40' in current_sample_name:
+            treename=[
+            'tagsDumper/trees/QCD_Pt_30to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            ]
+        elif 'QCD_Pt-40toInf' in current_sample_name:
+            treename=[
+            'tagsDumper/trees/QCD_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2'
+            ]
         else:
             print('<run_network_evaluation> Warning: Process name not recognised. Exiting.')
             exit(0)
@@ -282,6 +293,7 @@ def main():
 
             ######## Loop over ttree #########
             print('<run_network_evaluation> data_tree # Entries: ', data_tree.GetEntries())
+            print('<run_network_evaluation> output_tree # Entries: ', output_tree.GetEntries())
             if output_tree.GetEntries() != 0:
                 print('<run_network_evaluation> output_tree # Entries: ', output_tree.GetEntries())
                 print('This tree should be empty at this point!!!!! check cloning correctly')
@@ -313,7 +325,7 @@ def main():
                 N_goodJets = array('d',[0])
                 N_goodJets = data_tree.N_goodJets
 
-                if ( (Leading_Photon_pt/CMS_hgg_mass)>0.35 and (Subleading_Photon_pt/CMS_hgg_mass)>0.25 and passbVeto==1 and ExOneLep==1 and N_goodJets>=1):
+                if ( (Leading_Photon_pt/CMS_hgg_mass)>0.35 and (Subleading_Photon_pt/CMS_hgg_mass)>0.25 and passbVeto==1 and ExOneLep==0 and N_goodJets>=4):
                     pass_selection = 1
                 else:
                     pass_selection = 0
@@ -330,7 +342,7 @@ def main():
                 histo_DNN_values.Fill(eventnum_resultsprob_dict.get(Eventnum_)[0] , EventWeight_)
                 DNN_evaluation[0] = eventnum_resultsprob_dict.get(Eventnum_)[0]
                 output_tree.Fill()
-
+        print('\n')
         eventnum_resultsprob_dict.clear()
         output_file.Write()
         output_file.Close()

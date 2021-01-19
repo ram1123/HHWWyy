@@ -48,13 +48,14 @@ conda activate tfv24
 # by default conda installed tf2.0. 
 # So, to upgrade tensorflow to the latest version run below command 
 # pip install tensorflow --upgrade
-pip install tensorflow=2.2
+pip install tensorflow==2.2
 conda install -c anaconda pydot
 conda install -c anaconda seaborn
 conda install -c conda-forge shap
 conda install -c conda-forge uproot uproot-base
 # conda install -c conda-forge matplotlib
 conda install -c anaconda keras
+conda install -c conda-forge root_numpy
 ```
 
 * ***With tensorflow v2.4 shap is not working. It gives error saying "AttributeError: 'KerasTensor' object has no attribute 'graph'". Till now it seems that there is no solution for this. This issue is mentioned here: https://github.com/slundberg/shap/issues/1694 .***
