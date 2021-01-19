@@ -5,4 +5,4 @@ HHWWyyDNN_binary*/
 MVANtuples/
 *.json
 logs/
-hyp*.txt
+*.txt

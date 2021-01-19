@@ -94,7 +94,7 @@ def GetSOverRootB(sig, bckg):
 
 def rebinHistograms(sample_info):
     original_signal_hist = sample_info.get('HHWWgg')[2]
-    original_bckg_hist = sample_info.get('DiPhoton')[2]
+    original_bckg_hist = sample_info.get('TTGJets')[2]
     nBins = original_bckg_hist.GetNbinsX()
     x_bin_edges = []
     cumulative_bckg_entries = 0
@@ -271,165 +271,39 @@ def main():
     classifier_samples_dir = os.path.join("samples_w_DNN/",inputs_directory)
     print('Reading samples from: ', classifier_samples_dir)
 
-    signal_scale=10000.
+    signal_scale=1000.
     #additional_info = [inputs_directory]
 
     sample_info = OrderedDict([
-    ('HHWWgg' , ['HHWWgg-SL-SM-NLO-2017',2]),
-    ('DiPhoton' , ['DiPhotonJetsBox_MGG-80toInf_13TeV-Sherpa_Hadded',1]),
-    ('GJet_Pt-20toInf' , ['GJet_Pt-20toInf_DoubleEMEnriched_MGG-40to80_TuneCP5_13TeV_Pythia8_Hadded',28]),
-    ('GJet_Pt-20to40' , ['GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded',28]),
-    ('GJet_Pt-40toInf' , ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8_Hadded',28]),
-    ('DYJetsToLL_M-50' , ['DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8_Hadded',4]),
-    ('TTGJets' , ['TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8_Hadded',5]),
-    ('TTGG' , ['TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_Hadded',6]),
-    ('TTJets_HT-600to800' , ['TTJets_HT-600to800_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded',7]),
-    ('TTJets_HT-800to1200' , ['TTJets_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded',7]),
-    ('TTJets_HT-1200to2500' , ['TTJets_HT-1200to2500_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded',7]),
-    ('TTJets_HT-2500toInf' , ['TTJets_HT-2500toInf_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded',7]),
-    #('W1JetsToLNu_LHEWpT_0-50' , ['W1JetsToLNu_LHEWpT_0-50_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W1JetsToLNu_LHEWpT_50-150' , ['W1JetsToLNu_LHEWpT_50-150_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W1JetsToLNu_LHEWpT_150-250' , ['W1JetsToLNu_LHEWpT_150-250_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W1JetsToLNu_LHEWpT_250-400' , ['W1JetsToLNu_LHEWpT_250-400_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W1JetsToLNu_LHEWpT_400-inf' , ['W1JetsToLNu_LHEWpT_400-inf_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W2JetsToLNu_LHEWpT_0-50' , ['W2JetsToLNu_LHEWpT_0-50_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W2JetsToLNu_LHEWpT_50-150' , ['W2JetsToLNu_LHEWpT_50-150_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W2JetsToLNu_LHEWpT_150-250' , ['W2JetsToLNu_LHEWpT_150-250_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W2JetsToLNu_LHEWpT_250-400' , ['W2JetsToLNu_LHEWpT_250-400_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W2JetsToLNu_LHEWpT_400-inf' , ['W2JetsToLNu_LHEWpT_400-inf_TuneCP5_13TeV-amcnloFXFX-pythia8_Hadded',8]),
-    ('W3JetsToLNu' , ['W3JetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded',8]),
-    ('W4JetsToLNu' , ['W4JetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8_Hadded',8]),
-    ('ttHJetToGG' , ['ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8_Hadded',9])
+    ('HHWWgg' , ['ggF_SM_WWgg_qqqq_Hadded',2]),
+    ('GJet_Pt-40toInf' , ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',28]),
+    ('TTGJets' , ['TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8',5]),
+    ('QCD_Pt_40toInf', ['QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',3])
     ])
     #'Data' : ('Data_'+JESname+region)
 
     input_name_HH = '%s/%s.root' % (classifier_samples_dir,sample_info.get('HHWWgg')[0])
     input_file_HH = TFile.Open(input_name_HH)
-    input_name_DiPhoton = '%s/%s.root' % (classifier_samples_dir,sample_info.get('DiPhoton')[0])
-    input_file_DiPhoton = TFile.Open(input_name_DiPhoton)
-    input_name_GJet_Pt_20toInf = '%s/%s.root' % (classifier_samples_dir,sample_info.get('GJet_Pt-20toInf')[0])
-    input_file_GJet_Pt_20toInf = TFile.Open(input_name_GJet_Pt_20toInf)
-    input_name_GJet_Pt_20to40 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('GJet_Pt-20to40')[0])
-    input_file_GJet_Pt_20to40 = TFile.Open(input_name_GJet_Pt_20to40)
     input_name_GJet_Pt_40toInf = ' %s/%s.root' % (classifier_samples_dir,sample_info.get('GJet_Pt-40toInf')[0])
     input_file_GJet_Pt_40toInf = TFile.Open(input_name_GJet_Pt_40toInf)
-    input_name_DYJetsToLL = '%s/%s.root' % (classifier_samples_dir,sample_info.get('DYJetsToLL_M-50')[0])
-    input_file_DYJetsToLL = TFile.Open(input_name_DYJetsToLL)
     input_name_TTGJets = '%s/%s.root' % (classifier_samples_dir,sample_info.get('TTGJets')[0])
     input_file_TTGJets = TFile.Open(input_name_TTGJets)
-    input_name_TTGG = '%s/%s.root' % (classifier_samples_dir,sample_info.get('TTGG')[0])
-    input_file_TTGG = TFile.Open(input_name_TTGG)
-    input_name_TTJets_HT_600to800 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('TTJets_HT-600to800')[0])
-    input_file_TTJets_HT_600to800 = TFile.Open(input_name_TTJets_HT_600to800)
-    input_name_TTJets_HT_800to1200 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('TTJets_HT-800to1200')[0])
-    input_file_TTJets_HT_800to1200 = TFile.Open(input_name_TTJets_HT_800to1200)
-    input_name_TTJets_HT_1200to2500 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('TTJets_HT-1200to2500')[0])
-    input_file_TTJets_HT_1200to2500 = TFile.Open(input_name_TTJets_HT_1200to2500)
-    input_name_TTJets_HT_2500toInf = '%s/%s.root' % (classifier_samples_dir,sample_info.get('TTJets_HT-2500toInf')[0])
-    input_file_TTJets_HT_2500toInf = TFile.Open(input_name_TTJets_HT_2500toInf)
-    '''input_name_W1JetsToLNu_LHEWpT_0_50 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W1JetsToLNu_LHEWpT_0-50')[0])
-    input_file_W1JetsToLNu_LHEWpT_0_50 = TFile.Open(input_name_W1JetsToLNu_LHEWpT_0_50)'''
-    input_name_W1JetsToLNu_LHEWpT_50_150 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W1JetsToLNu_LHEWpT_50-150')[0])
-    input_file_W1JetsToLNu_LHEWpT_50_150 = TFile.Open(input_name_W1JetsToLNu_LHEWpT_50_150)
-    input_name_W1JetsToLNu_LHEWpT_150_250 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W1JetsToLNu_LHEWpT_150-250')[0])
-    input_file_W1JetsToLNu_LHEWpT_150_250 = TFile.Open(input_name_W1JetsToLNu_LHEWpT_150_250)
-    input_name_W1JetsToLNu_LHEWpT_250_400 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W1JetsToLNu_LHEWpT_250-400')[0])
-    input_file_W1JetsToLNu_LHEWpT_250_400 = TFile.Open(input_name_W1JetsToLNu_LHEWpT_250_400)
-    input_name_W1JetsToLNu_LHEWpT_400_inf = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W1JetsToLNu_LHEWpT_400-inf')[0])
-    input_file_W1JetsToLNu_LHEWpT_400_inf = TFile.Open(input_name_W1JetsToLNu_LHEWpT_400_inf)
-    input_name_W2JetsToLNu_LHEWpT_0_50 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W2JetsToLNu_LHEWpT_0-50')[0])
-    input_file_W2JetsToLNu_LHEWpT_0_50 = TFile.Open(input_name_W2JetsToLNu_LHEWpT_0_50)
-    input_name_W2JetsToLNu_LHEWpT_50_150 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W2JetsToLNu_LHEWpT_50-150')[0])
-    input_file_W2JetsToLNu_LHEWpT_50_150 = TFile.Open(input_name_W2JetsToLNu_LHEWpT_50_150)
-    input_name_W2JetsToLNu_LHEWpT_150_250 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W2JetsToLNu_LHEWpT_150-250')[0])
-    input_file_W2JetsToLNu_LHEWpT_150_250 = TFile.Open(input_name_W2JetsToLNu_LHEWpT_150_250)
-    input_name_W2JetsToLNu_LHEWpT_250_400 = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W2JetsToLNu_LHEWpT_250-400')[0])
-    input_file_W2JetsToLNu_LHEWpT_250_400 = TFile.Open(input_name_W2JetsToLNu_LHEWpT_250_400)
-    input_name_W2JetsToLNu_LHEWpT_400_inf = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W2JetsToLNu_LHEWpT_400-inf')[0])
-    input_file_W2JetsToLNu_LHEWpT_400_inf = TFile.Open(input_name_W2JetsToLNu_LHEWpT_400_inf)
-    input_name_W3JetsToLNu = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W3JetsToLNu')[0])
-    input_file_W3JetsToLNu = TFile.Open(input_name_W3JetsToLNu)
-    input_name_W4JetsToLNu = '%s/%s.root' % (classifier_samples_dir,sample_info.get('W4JetsToLNu')[0])
-    input_file_W4JetsToLNu = TFile.Open(input_name_W4JetsToLNu)
-    input_name_ttHJetToGG = '%s/%s.root' % (classifier_samples_dir,sample_info.get('ttHJetToGG')[0])
-    input_file_ttHJetToGG = TFile.Open(input_name_ttHJetToGG)
+    input_name_QCD_Pt_40toInf = '%s/%s.root' % (classifier_samples_dir,sample_info.get('QCD_Pt_40toInf')[0])
+    input_file_QCD_Pt_40toInf = TFile.Open(input_name_QCD_Pt_40toInf)
 
     hist_stack = ROOT.THStack()
     histo_HH_name = 'histo_DNN_values_HHWWgg_sample'
     histo_HH_ = input_file_HH.Get(histo_HH_name)
     sample_info.get('HHWWgg').insert(len(sample_info.get('HHWWgg')),histo_HH_)
-    histo_diphoton_name = 'histo_DNN_values_DiPhoton_sample'
-    histo_diphoton_ = input_file_DiPhoton.Get(histo_diphoton_name)
-    sample_info.get('DiPhoton').insert(len(sample_info.get('DiPhoton')),histo_diphoton_)
-    histo_GJet_Pt_20toInf_name = 'histo_DNN_values_GJet_Pt-20toInf_sample'
-    histo_GJet_Pt_20toInf_ = input_file_GJet_Pt_20toInf.Get(histo_GJet_Pt_20toInf_name)
-    sample_info.get('GJet_Pt-20toInf').insert(len(sample_info.get('GJet_Pt-20toInf')),histo_GJet_Pt_20toInf_)
-    histo_GJet_Pt_20to40_name = 'histo_DNN_values_GJet_Pt-20to40_sample'
-    histo_GJet_Pt_20to40_ = input_file_GJet_Pt_20to40.Get(histo_GJet_Pt_20to40_name)
-    sample_info.get('GJet_Pt-20to40').insert(len(sample_info.get('GJet_Pt-20to40')),histo_GJet_Pt_20to40_)
     histo_GJet_Pt_40toInf_name = 'histo_DNN_values_GJet_Pt-40toInf_sample'
     histo_GJet_Pt_40toInf_ = input_file_GJet_Pt_40toInf.Get(histo_GJet_Pt_40toInf_name)
     sample_info.get('GJet_Pt-40toInf').insert(len(sample_info.get('GJet_Pt-40toInf')),histo_GJet_Pt_40toInf_)
-    histo_DYJetsToLL_name = 'histo_DNN_values_DYJetsToLL_M-50_sample'
-    histo_DYJetsToLL_ = input_file_DYJetsToLL.Get(histo_DYJetsToLL_name)
-    sample_info.get('DYJetsToLL_M-50').insert(len(sample_info.get('DYJetsToLL_M-50')),histo_DYJetsToLL_)
     histo_TTGJets_name = 'histo_DNN_values_TTGJets_sample'
     histo_TTGJets_ = input_file_TTGJets.Get(histo_TTGJets_name)
     sample_info.get('TTGJets').insert(len(sample_info.get('TTGJets')),histo_TTGJets_)
-    histo_TTGG_name = 'histo_DNN_values_TTGG_sample'
-    histo_TTGG_ = input_file_TTGG.Get(histo_TTGG_name)
-    sample_info.get('TTGG').insert(len(sample_info.get('TTGG')),histo_TTGG_)
-    histo_TTJets_HT_600to800_name = 'histo_DNN_values_TTJets_HT-600to800_sample'
-    histo_TTJets_HT_600to800_ = input_file_TTJets_HT_600to800.Get(histo_TTJets_HT_600to800_name)
-    sample_info.get('TTJets_HT-600to800').insert(len(sample_info.get('TTJets_HT-600to800')),histo_TTJets_HT_600to800_)
-    histo_TTJets_HT_800to1200_name = 'histo_DNN_values_TTJets_HT-800to1200_sample'
-    histo_TTJets_HT_800to1200_ = input_file_TTJets_HT_800to1200.Get(histo_TTJets_HT_800to1200_name)
-    sample_info.get('TTJets_HT-800to1200').insert(len(sample_info.get('TTJets_HT-800to1200')),histo_TTJets_HT_800to1200_)
-    histo_TTJets_HT_1200to2500_name = 'histo_DNN_values_TTJets_HT-1200to2500_sample'
-    histo_TTJets_HT_1200to2500_ = input_file_TTJets_HT_1200to2500.Get(histo_TTJets_HT_1200to2500_name)
-    sample_info.get('TTJets_HT-1200to2500').insert(len(sample_info.get('TTJets_HT-1200to2500')),histo_TTJets_HT_1200to2500_)
-    histo_TTJets_HT_2500toInf_name = 'histo_DNN_values_TTJets_HT-2500toInf_sample'
-    histo_TTJets_HT_2500toInf_ = input_file_TTJets_HT_2500toInf.Get(histo_TTJets_HT_2500toInf_name)
-    sample_info.get('TTJets_HT-2500toInf').insert(len(sample_info.get('TTJets_HT-2500toInf')),histo_TTJets_HT_2500toInf_)
-    '''histo_W1JetsToLNu_LHEWpT_0_50_name = 'histo_DNN_values_W1JetsToLNu_LHEWpT_0-50_sample'
-    histo_W1JetsToLNu_LHEWpT_0_50_ = input_file_W1JetsToLNu_LHEWpT_0_50.Get(histo_W1JetsToLNu_LHEWpT_0_50_name)
-    sample_info.get('W1JetsToLNu_LHEWpT_0-50').insert(len(sample_info.get('W1JetsToLNu_LHEWpT_0-50')),histo_W1JetsToLNu_LHEWpT_0_50_)'''
-    histo_W1JetsToLNu_LHEWpT_50_150_name = 'histo_DNN_values_W1JetsToLNu_LHEWpT_50-150_sample'
-    histo_W1JetsToLNu_LHEWpT_50_150_ = input_file_W1JetsToLNu_LHEWpT_50_150.Get(histo_W1JetsToLNu_LHEWpT_50_150_name)
-    sample_info.get('W1JetsToLNu_LHEWpT_50-150').insert(len(sample_info.get('W1JetsToLNu_LHEWpT_50-150')),histo_W1JetsToLNu_LHEWpT_50_150_)
-    histo_W1JetsToLNu_LHEWpT_150_250_name = 'histo_DNN_values_W1JetsToLNu_LHEWpT_150-250_sample'
-    histo_W1JetsToLNu_LHEWpT_150_250_ = input_file_W1JetsToLNu_LHEWpT_150_250.Get(histo_W1JetsToLNu_LHEWpT_150_250_name)
-    sample_info.get('W1JetsToLNu_LHEWpT_150-250').insert(len(sample_info.get('W1JetsToLNu_LHEWpT_150-250')),histo_W1JetsToLNu_LHEWpT_150_250_)
-    histo_W1JetsToLNu_LHEWpT_250_400_name = 'histo_DNN_values_W1JetsToLNu_LHEWpT_250-400_sample'
-    histo_W1JetsToLNu_LHEWpT_250_400_ = input_file_W1JetsToLNu_LHEWpT_250_400.Get(histo_W1JetsToLNu_LHEWpT_250_400_name)
-    sample_info.get('W1JetsToLNu_LHEWpT_250-400').insert(len(sample_info.get('W1JetsToLNu_LHEWpT_250-400')),histo_W1JetsToLNu_LHEWpT_250_400_)
-    histo_W1JetsToLNu_LHEWpT_400_inf_name = 'histo_DNN_values_W1JetsToLNu_LHEWpT_400-inf_sample'
-    histo_W1JetsToLNu_LHEWpT_400_inf_ = input_file_W1JetsToLNu_LHEWpT_400_inf.Get(histo_W1JetsToLNu_LHEWpT_400_inf_name)
-    sample_info.get('W1JetsToLNu_LHEWpT_400-inf').insert(len(sample_info.get('W1JetsToLNu_LHEWpT_400-inf')),histo_W1JetsToLNu_LHEWpT_400_inf_)
-    histo_W2JetsToLNu_LHEWpT_0_50_name = 'histo_DNN_values_W2JetsToLNu_LHEWpT_0-50_sample'
-    histo_W2JetsToLNu_LHEWpT_0_50_ = input_file_W2JetsToLNu_LHEWpT_0_50.Get(histo_W2JetsToLNu_LHEWpT_0_50_name)
-    sample_info.get('W2JetsToLNu_LHEWpT_0-50').insert(len(sample_info.get('W2JetsToLNu_LHEWpT_0-50')),histo_W2JetsToLNu_LHEWpT_0_50_)
-    histo_W2JetsToLNu_LHEWpT_50_150_name = 'histo_DNN_values_W2JetsToLNu_LHEWpT_50-150_sample'
-    histo_W2JetsToLNu_LHEWpT_50_150_ = input_file_W2JetsToLNu_LHEWpT_50_150.Get(histo_W2JetsToLNu_LHEWpT_50_150_name)
-    sample_info.get('W2JetsToLNu_LHEWpT_50-150').insert(len(sample_info.get('W2JetsToLNu_LHEWpT_50-150')),histo_W2JetsToLNu_LHEWpT_50_150_)
-    histo_W2JetsToLNu_LHEWpT_150_250_name = 'histo_DNN_values_W2JetsToLNu_LHEWpT_150-250_sample'
-    histo_W2JetsToLNu_LHEWpT_150_250_ = input_file_W2JetsToLNu_LHEWpT_150_250.Get(histo_W2JetsToLNu_LHEWpT_150_250_name)
-    sample_info.get('W2JetsToLNu_LHEWpT_150-250').insert(len(sample_info.get('W2JetsToLNu_LHEWpT_150-250')),histo_W2JetsToLNu_LHEWpT_150_250_)
-    histo_W2JetsToLNu_LHEWpT_250_400_name = 'histo_DNN_values_W2JetsToLNu_LHEWpT_250-400_sample'
-    histo_W2JetsToLNu_LHEWpT_250_400_ = input_file_W2JetsToLNu_LHEWpT_250_400.Get(histo_W2JetsToLNu_LHEWpT_250_400_name)
-    sample_info.get('W2JetsToLNu_LHEWpT_250-400').insert(len(sample_info.get('W2JetsToLNu_LHEWpT_250-400')),histo_W2JetsToLNu_LHEWpT_250_400_)
-    histo_W2JetsToLNu_LHEWpT_400_inf_name = 'histo_DNN_values_W2JetsToLNu_LHEWpT_400-inf_sample'
-    histo_W2JetsToLNu_LHEWpT_400_inf_ = input_file_W2JetsToLNu_LHEWpT_400_inf.Get(histo_W2JetsToLNu_LHEWpT_400_inf_name)
-    sample_info.get('W2JetsToLNu_LHEWpT_400-inf').insert(len(sample_info.get('W2JetsToLNu_LHEWpT_400-inf')),histo_diphoton_)
-    histo_W3JetsToLNu_name = 'histo_DNN_values_W3JetsToLNu_sample'
-    histo_W3JetsToLNu_ = input_file_W3JetsToLNu.Get(histo_W3JetsToLNu_name)
-    sample_info.get('W3JetsToLNu').insert(len(sample_info.get('W3JetsToLNu')),histo_W3JetsToLNu_)
-    histo_W4JetsToLNu_name = 'histo_DNN_values_W4JetsToLNu_sample'
-    histo_W4JetsToLNu_ = input_file_W4JetsToLNu.Get(histo_W4JetsToLNu_name)
-    sample_info.get('W4JetsToLNu').insert(len(sample_info.get('W4JetsToLNu')),histo_W4JetsToLNu_)
-    histo_ttHJetToGG_name = 'histo_DNN_values_ttHJetToGG_sample'
-    histo_ttHJetToGG_ = input_file_ttHJetToGG.Get(histo_ttHJetToGG_name)
-    sample_info.get('ttHJetToGG').insert(len(sample_info.get('ttHJetToGG')),histo_ttHJetToGG_)
+    histo_QCD_Pt_40toInf_name = 'histo_DNN_values_QCD_Pt_40toInf_sample'
+    histo_QCD_Pt_40toInf_ = input_file_QCD_Pt_40toInf.Get(histo_QCD_Pt_40toInf_name)
+    sample_info.get('QCD_Pt_40toInf').insert(len(sample_info.get('QCD_Pt_40toInf')),histo_TTGJets_)
 
     # Rebin Histograms so > 0 total background entries per bin.
     rebinned_histograms, x_bin_edges_ = rebinHistograms(sample_info)
@@ -458,9 +332,9 @@ def main():
             elif 'GJet_Pt-' in plotted_samples[isample] and 'GJet_Pt-' in rebinned_hist_name:
                 previously_plotted+=1
                 legend_entry = 'GJets'
-            elif 'DYJets' in plotted_samples[isample] and 'DYJets' in rebinned_hist_name:
+            elif 'QCD_Pt_40toInf' in plotted_samples[isample] and 'QCD_Pt_40toInf' in rebinned_hist_name:
                 previously_plotted+=1
-                legend_entry = 'DYJetsToLL'
+                legend_entry = 'QCD'
             else:
                 legend_entry = rebinned_hist_name
 
