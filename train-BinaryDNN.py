@@ -228,7 +228,6 @@ def load_data(inputPath,variables,criteria):
             # print("Shape (before return)")
             # print("\tchunk_df: ",chunk_df.shape)
             # print("\tdata: ",data.shape)
-
     return data
 
 def load_trained_model(model_path):
@@ -236,30 +235,66 @@ def load_trained_model(model_path):
     model = load_model(model_path, compile=False)
     return model
 
-def baseline_model(num_variables,learn_rate=0.001):
+def baseline_model(
+                   num_variables,
+                   optimizer='Adam',
+                   activation='relu',
+                   dropout_rate=0.0,
+                   init_mode='glorot_normal',
+                   learn_rate=0.001
+                   ):
     model = Sequential()
-    model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
-    # model.add(Dropout(0.2))
-    model.add(Dense(26,activation='relu'))
-    # model.add(Dropout(0.2))
-    model.add(Dense(13,activation='relu'))
-    # model.add(Dense(6,activation='relu'))
+    model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer=init_mode,activation=activation))
+    # model.add(Dropout(dropout_rate))
+    # model.add(Dense(39,activation=activation))
+    # model.add(Dropout(dropout_rate))
+    # model.add(Dense(117,activation=activation))
+    # model.add(Dropout(dropout_rate))
+    # model.add(Dense(86,activation=activation))
+    # model.add(Dropout(dropout_rate))
+    # model.add(Dense(43,activation=activation))
+    # model.add(Dropout(dropout_rate))
+    # model.add(Dense(11,activation=activation))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
-    optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
+    # optimizer=Nadam(lr=learn_rate)
+    # optimizer=Adam(lr=learn_rate)
+    # model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
+    if optimizer=='Adam':
+        model.compile(loss='binary_crossentropy',optimizer=Adam(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Nadam':
+        model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adamax':
+        model.compile(loss='binary_crossentropy',optimizer=Adamax(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adadelta':
+        model.compile(loss='binary_crossentropy',optimizer=Adadelta(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adagrad':
+        model.compile(loss='binary_crossentropy',optimizer=Adagrad(lr=learn_rate),metrics=['acc'])
     return model
 
-def gscv_model(learn_rate=0.001):
+def gscv_model(optimizer="Adam",learn_rate=0.001):
     model = Sequential()
     model.add(Dense(13,input_dim=13,kernel_initializer='glorot_normal',activation='relu'))
-    model.add(Dense(26,activation='relu'))
-    model.add(Dense(13,activation='relu'))
+    # model.add(Dense(39,activation='relu'))
+    # model.add(Dense(117,activation='relu'))
+    # model.add(Dense(86,activation='relu'))
+    # model.add(Dense(43,activation='relu'))
+    # model.add(Dense(11,activation='relu'))
     # model.add(Dense(4,activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
-    optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
+    # optimizer=Nadam(lr=learn_rate)
+    # model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
+    if optimizer=='Adam':
+        model.compile(loss='binary_crossentropy',optimizer=Adam(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Nadam':
+        model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adamax':
+        model.compile(loss='binary_crossentropy',optimizer=Adamax(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adadelta':
+        model.compile(loss='binary_crossentropy',optimizer=Adadelta(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adagrad':
+        model.compile(loss='binary_crossentropy',optimizer=Adagrad(lr=learn_rate),metrics=['acc'])
     return model
 
 def check_dir(dir):
@@ -288,16 +323,28 @@ def main():
     weights='BalanceYields'# 'BalanceYields' or 'BalanceNonWeighted'
     optimizer = 'Nadam'
     validation_split=0.1
+
+    # Load dnn parameter json file
+    f_dnn_parameter = open('dnn_parameter.json',)
+    dnn_parameter = json.load(f_dnn_parameter)
+    f_dnn_parameter.close()
     # hyper-parameter scan results
     if weights == 'BalanceNonWeighted':
-        learn_rate = 0.0005
-        epochs = 200
-        batch_size=200
+        learn_rate = dnn_parameter['default'][0]['learn_rate']
+        epochs = dnn_parameter['default'][0]['epochs']
+        batch_size=dnn_parameter['default'][0]['batch_size']
+        optimizer=dnn_parameter['default'][0]['optimizer']
     if weights == 'BalanceYields':
-        learn_rate = 1e-05
-        epochs = 100
-        batch_size=100
+        learn_rate = dnn_parameter['default'][0]['learn_rate']
+        epochs = dnn_parameter['default'][0]['epochs']
+        batch_size=dnn_parameter['default'][0]['batch_size']
+        optimizer=dnn_parameter['default'][0]['optimizer']
 
+    print("Input DNN parameters:")
+    print("\tepochs: ",epochs)
+    print("\tbatch_size: ",batch_size)
+    print("\tlearn_rate: ",learn_rate)
+    print("\toptimizer: ",optimizer)
     # Create instance of output directory where all results are saved.
     output_directory = 'HHWWyyDNN_binary_%s_%s/' % (suffix,weights)
     check_dir(output_directory)
@@ -311,7 +358,8 @@ def main():
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
     input_var_jsonFile = open('input_variables.json','r')
-    selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) & (passbVeto==1) & (ExOneLep==0) & (N_goodJets>=4))'
+    selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) '
+    # selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) & (passbVeto==1) & (ExOneLep==0) & (N_goodJets>=4))'
     #selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) && ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) && passbVeto==1 && ExOneLep==1 && N_goodJets>=1)'
 
     # Load Variables from .json
@@ -503,14 +551,26 @@ def main():
             time_str = str(time.localtime())+'\n'
             hyp_param_scan_results.write(time_str+'\n')
             hyp_param_scan_results.write(weights+'\n')
-            learn_rates=[0.00001, 0.01]
-            epochs = [100,300]
-            batch_size = [100,700]
-            param_grid = dict(learn_rate=learn_rates,epochs=epochs,batch_size=batch_size)
+            learn_rate = [0.0001]
+            # learn_rate = [0.00001, 0.0001, 0.001, 0.01]
+            # epochs = [100]
+            epochs = [10, 50, 100, 150, 200, 300]
+            # batch_size = [100]
+            batch_size = [60, 80, 100, 150, 200, 250, 300, 350, 400]
+            optimizer = ['Adam']
+            # optimizer = ['Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+            param_grid = dict(learn_rate=learn_rate,epochs=epochs,batch_size=batch_size,optimizer=optimizer)
             model = KerasClassifier(build_fn=gscv_model,verbose=0)
             grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
             grid_result = grid.fit(X_train,Y_train,shuffle=True,sample_weight=trainingweights)
             print("Best score: %f , best params: %s" % (grid_result.best_score_,grid_result.best_params_))
+            dnn_parameter['Optimized_FH'][0]['epochs'] = grid_result.best_params_['epochs']
+            dnn_parameter['Optimized_FH'][0]['batch_size'] = grid_result.best_params_['batch_size']
+            dnn_parameter['Optimized_FH'][0]['learn_rate'] = grid_result.best_params_['learn_rate']
+            dnn_parameter['Optimized_FH'][0]['optimizer'] = grid_result.best_params_['optimizer']
+            f_dnn_parameter = open("dnn_parameter.json", "w")   # open json file
+            json.dump(dnn_parameter, f_dnn_parameter, indent=4, sort_keys=False)   # update json file
+            f_dnn_parameter.close() # close json file
             hyp_param_scan_results.write("Best score: %f , best params: %s\n" %(grid_result.best_score_,grid_result.best_params_))
             means = grid_result.cv_results_['mean_test_score']
             stds = grid_result.cv_results_['std_test_score']
@@ -518,26 +578,41 @@ def main():
             for mean, stdev, param in zip(means, stds, params):
                 print("Mean (stdev) test score: %f (%f) with parameters: %r" % (mean,stdev,param))
                 hyp_param_scan_results.write("Mean (stdev) test score: %f (%f) with parameters: %r\n" % (mean,stdev,param))
-            exit()
-        else:
-            # Define model for analysis
-            early_stopping_monitor = EarlyStopping(patience=30, monitor='val_loss', verbose=1)
-            model = baseline_model(num_variables, learn_rate=learn_rate)
+            # exit()
 
-            logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-            tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+        # Load the updated dnn parameter json file
+        f_dnn_parameter = open('dnn_parameter.json',)
+        dnn_parameter = json.load(f_dnn_parameter)
+        f_dnn_parameter.close()
+        # hyper-parameter scan results
+        learn_rate = dnn_parameter['Optimized_FH'][0]['learn_rate']
+        epochs = dnn_parameter['Optimized_FH'][0]['epochs']
+        batch_size=dnn_parameter['Optimized_FH'][0]['batch_size']
+        optimizer=dnn_parameter['Optimized_FH'][0]['optimizer']
 
-            # Fit the model
-            # Batch size = examples before updating weights (larger = faster training)
-            # Epoch = One pass over data (useful for periodic logging and evaluation)
-            #class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
-            history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor,tensorboard_callback])
-            histories.append(history)
-            labels.append(optimizer)
-            # Make plot of loss function evolution
-            Plotter.plot_training_progress_acc(histories, labels)
-            acc_progress_filename = 'DNN_acc_wrt_epoch.png'
-            Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename)
+        print("DNN parameters: Before traning the model:")
+        print("\tepochs: ",epochs)
+        print("\tbatch_size: ",batch_size)
+        print("\tlearn_rate: ",learn_rate)
+
+        # Define model for analysis
+        early_stopping_monitor = EarlyStopping(patience=30, monitor='val_loss', verbose=1)
+        model = baseline_model(num_variables, optimizer, learn_rate=learn_rate)
+
+        logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+
+        # Fit the model
+        # Batch size = examples before updating weights (larger = faster training)
+        # Epoch = One pass over data (useful for periodic logging and evaluation)
+        #class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
+        history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor,tensorboard_callback])
+        histories.append(history)
+        labels.append(optimizer)
+        # Make plot of loss function evolution
+        Plotter.plot_training_progress_acc(histories, labels)
+        acc_progress_filename = 'DNN_acc_wrt_epoch.png'
+        Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename)
     else:
         model_name = os.path.join(output_directory,'model.h5')
         model = load_trained_model(model_name)
