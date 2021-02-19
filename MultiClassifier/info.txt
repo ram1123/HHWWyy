@@ -1,0 +1,7 @@
+-t 1: is the option to retrain and make a new model
+
+-s : name of the output dir
+
+-i : name of the samples directory
+
+/eos/user/b/bmarzocc/HHWWgg/January_2021_Production/
