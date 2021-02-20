@@ -8,10 +8,12 @@ from sklearn.metrics import roc_curve, roc_auc_score, auc, confusion_matrix
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import interp
+from itertools import cycle
 
 class plotter(object):
 
-    def __init__(self):
+    def __init__(self, Website):
         self.separations_categories = []
         self.output_directory = ''
         #self.bin_edges_low_high = np.array([0.,0.0625,0.125,0.1875,0.25,0.3125,0.375,0.4375,0.5,0.5625,0.6125,0.6875,0.75,0.8125,0.875,0.9375,1.0])
@@ -22,6 +24,7 @@ class plotter(object):
         self.yscores_train_non_categorised = [[0 for x in range(w)] for y in range(h)]
         self.yscores_test_non_categorised = [[0 for x in range(w)] for y in range(h)]
         self.plots_directory = ''
+        self.Website = Website 
         pass
 
     def save_plots(self, dir='plots/', filename=''):
@@ -33,6 +36,7 @@ class plotter(object):
     def check_dir(self, dir):
         if not os.path.exists(dir):
             os.makedirs(dir)
+            if(self.Website != ""): os.system("cp %s/../index.php %s"%(dir,dir))
 
     def plot_training_progress_acc(self, histories, labels):
         self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10))
@@ -80,6 +84,7 @@ class plotter(object):
         return
 
     def ROC(self, model, X_test, Y_test, X_train, Y_train):
+
         y_pred_keras_test = model.predict(X_test).ravel()
         fpr_keras_test, tpr_keras_test, thresholds_keras_test = roc_curve(Y_test, y_pred_keras_test)
         auc_keras_test = auc(fpr_keras_test, tpr_keras_test)
@@ -95,20 +100,31 @@ class plotter(object):
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
         plt.title('ROC curve')
-        plt.legend(loc='best')
-        plt.tight_layout()
+        plt.legend(loc='best') 
+        plt.tight_layout() 
 
-        return
+        return 
 
-    def history_plot(self, history, label='accuracy'):
+    def history_plot(self, history, from_log, label='accuracy'):
         self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10)) 
-        plt.plot(history.history[label])
-        plt.plot(history.history['val_'+label])
-        plt.title('model '+label)
-        plt.ylabel(label)
-        plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='best')
-        plt.tight_layout()
+
+        ##-- If obtaining history information from log file, no need for .history method 
+        if(from_log):
+            plt.plot(history[label])
+            plt.plot(history['val_'+label])
+            plt.title('model '+label)
+            plt.ylabel(label)
+            plt.xlabel('epoch')
+            plt.legend(['train', 'test'], loc='best')
+            plt.tight_layout()
+        else: 
+            plt.plot(history.history[label])
+            plt.plot(history.history['val_'+label])
+            plt.title('model '+label)
+            plt.ylabel(label)
+            plt.xlabel('epoch')
+            plt.legend(['train', 'test'], loc='best')
+            plt.tight_layout()
 
         return
 
@@ -155,6 +171,127 @@ class plotter(object):
         plt.tight_layout()
         return
 
+    def ROC_MultiClassifier(self, model, X_test, Y_test, X_train, Y_train):
+
+        # Plot linewidth.
+        lw = 2
+
+        n_classes = 2
+
+        Y_test_score = model.predict(X_test)
+        # print"Y_test_score:",Y_test_score
+
+        # Compute ROC curve and ROC area for each class
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        for i in range(n_classes):
+            fpr[i], tpr[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i]) ##-- add training set as well 
+            roc_auc[i] = auc(fpr[i], tpr[i])        
+
+        # Compute micro-average ROC curve and ROC area
+        fpr["micro"], tpr["micro"], _ = roc_curve(Y_test.ravel(), Y_test_score.ravel())
+        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+        # Compute macro-average ROC curve and ROC area
+
+        # First aggregate all false positive rates
+        all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+
+        # Then interpolate all ROC curves at this points
+        mean_tpr = np.zeros_like(all_fpr)
+        for i in range(n_classes):
+            mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+
+        # Finally average it and compute AUC
+        mean_tpr /= n_classes
+
+        fpr["macro"] = all_fpr
+        tpr["macro"] = mean_tpr
+        roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+
+        # Plot all ROC curves
+        # plt.figure(1)
+        fig, ax = plt.subplots()
+        plt.plot(fpr["micro"], tpr["micro"],
+                label='micro-average ROC curve (area = {0:0.2f})'
+                    ''.format(roc_auc["micro"]),
+                color='deeppink', linestyle=':', linewidth=4)
+
+        plt.plot(fpr["macro"], tpr["macro"],
+                label='macro-average ROC curve (area = {0:0.2f})'
+                    ''.format(roc_auc["macro"]),
+                color='navy', linestyle=':', linewidth=4)
+
+        colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+        for i, color in zip(range(n_classes), colors):
+            plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                    label='ROC curve of class {0} (area = {1:0.2f})'
+                    ''.format(i, roc_auc[i]))
+
+        plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Some extension of Receiver operating characteristic to multi-class')
+        plt.legend(loc="lower right")
+        save_name = "MultiClass_ROC"
+        plt.savefig("%s/%s.png"%(self.plots_directory,save_name))
+        plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
+        plt.close()
+
+        # self.save_plots(dir=self.plots_directory, filename=save_name)
+        
+        # plt.show()
+
+        # print"len(X_test) before:",len(X_test)
+        # print"len(X_train) before:",len(X_train)
+        # print"len(Y_test) before:",len(Y_test)
+        # print"len(Y_train) before:",len(Y_train)        
+
+        # Y_test = np.copy(Y_test[:,0].transpose())
+        # Y_train = np.copy(Y_train[:,0].transpose())
+
+        # print"len(X_test) after:",len(X_test)
+        # print"len(X_train) after:",len(X_train)
+        # print"len(Y_test) after:",len(Y_test)
+        # print"len(Y_train) after:",len(Y_train)  
+
+        # print("X_test:",X_test)
+        # print("X_train:",X_train)
+        # print("Y_test:",Y_test)
+        # print("Y_train:",Y_train)
+
+        # y_pred_keras_test = model.predict(X_test).ravel()
+        # y_pred_keras_test_onecolumn = model.predict(X_test).ravel()
+
+        # print"y_pred_keras_test:",y_pred_keras_test
+        # print"len(y_pred_keras_test):",len(y_pred_keras_test)
+
+        # Y_test_0 = np.copy(Y_test[:,0].transpose())
+        # Y_train_0 = np.copy(Y_train[:,0].transpose())
+
+        # y_pred_keras_test_0 = np.copy()
+
+        # fpr_keras_test, tpr_keras_test, thresholds_keras_test = roc_curve(Y_test, y_pred_keras_test)
+        # auc_keras_test = auc(fpr_keras_test, tpr_keras_test)
+
+        # y_pred_keras_train = model.predict(X_train).ravel()
+        # fpr_keras_train, tpr_keras_train, thresholds_keras_train = roc_curve(Y_train, y_pred_keras_train)
+        # auc_keras_train = auc(fpr_keras_train, tpr_keras_train) 
+        
+        # self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10)) 
+        # plt.plot([0, 1], [0, 1], 'k--')
+        # plt.plot(fpr_keras_test, tpr_keras_test, label='Test (area = {:.3f})'.format(auc_keras_test))
+        # plt.plot(fpr_keras_train, tpr_keras_train, label='Train (area = {:.3f})'.format(auc_keras_train))
+        # plt.xlabel('False positive rate')
+        # plt.ylabel('True positive rate')
+        # plt.title('ROC curve')
+        # plt.legend(loc='best') 
+        # plt.tight_layout() 
+
+        return         
 
     def ROC_sklearn(self, original_encoded_train_Y, result_probs_train, original_encoded_test_Y, result_probs_test, encoded_signal, pltname='', train_weights=[], test_weights=[]):
 

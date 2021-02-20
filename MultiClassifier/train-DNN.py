@@ -5,6 +5,23 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Code to train deep neural network
 # for HH->WWyy analysis.
+
+######################################################################################################################################################################
+# Example Commands: 
+#
+# source /cvmfs/sft.cern.ch/lcg/views/LCG_94/x86_64-centos7-gcc7-opt/setup.sh
+# 
+# ##-- Output Files to website 
+# python train-DNN.py -t 1 -s Test-Train-DNN-Binary -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/
+#
+# ##-- Output Files Locally (leave --Website flag empty)
+# python train-DNN.py -t 1 -s Test-Train-DNN-Binary -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck
+# 
+# ##-- Run multiclassifier and output to website 
+# python train-DNN.py -t 1 -s FastCheck-Multiclass -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass
+#
+######################################################################################################################################################################
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -56,6 +73,8 @@ from plotting.plotter import plotter
 from numpy.testing import assert_allclose
 from keras.callbacks import ModelCheckpoint
 from root_numpy import root2array, tree2array
+# import json 
+from keras.callbacks import CSVLogger
 
 seed = 7
 np.random.seed(7)
@@ -68,7 +87,7 @@ def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch
     #out = commands.getoutput(eos_cmd)
     return
 
-def load_data(inputPath,variables,criteria):
+def load_data(inputPath,variables,criteria,FastCheck):
     # Load dataset to .csv format file
     my_cols_list=variables
     data = pd.DataFrame(columns=my_cols_list)
@@ -80,7 +99,7 @@ def load_data(inputPath,variables,criteria):
             sampleNames=key
             subdir_name = 'Signal'
 
-            if(args.FastCheck):
+            if(FastCheck):
                 fileNames = ['GluGluToHHTo2G2Qlnu_node_SM_2017_LO_withNLOweights_HHWWggTag_0_MoreVars']
             else: 
                 fileNames = [
@@ -101,13 +120,18 @@ def load_data(inputPath,variables,criteria):
                 #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_odd_MoreVars',
                 #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_even_MoreVars'
                 ]
+
             target=1
         else:
             sampleNames = key
             subdir_name = 'Backgrounds'
 
-            if(args.FastCheck):
-                fileNames = ['DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars']
+            if(FastCheck):
+                # fileNames = ['ttHJetToGG_2017_HHWWggTag_0_MoreVars']
+                fileNames = ['GluGluHToGG_2017_HHWWggTag_0_MoreVars',
+                            'VBFHToGG_2017_HHWWggTag_0_MoreVars',
+                            'VHToGG_2017_HHWWggTag_0_MoreVars', 
+                            'ttHJetToGG_2017_HHWWggTag_0_MoreVars'] 
 
             else: 
                 fileNames = [
@@ -152,6 +176,7 @@ def load_data(inputPath,variables,criteria):
                 ]
             target=0
 
+        ##-- Make a dictionary and include from another module? 
         for filen in fileNames:
             if 'GluGluToHHTo2G2Qlnu_node_cHHH1_2017' in filen:
                 treename=['GluGluToHHTo2G2Qlnu_node_cHHH1_13TeV_HHWWggTag_0_v1']
@@ -429,7 +454,7 @@ def new_model(num_variables,learn_rate=0.001):
     model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
     return model
 
-def MultiClassifier_Model(num_variables,learn_rate=0.001, nClasses):
+def MultiClassifier_Model(num_variables, nClasses, learn_rate=0.001):
     model = Sequential()
     model.add(Dense(32, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
     model.add(BatchNormalization())
@@ -443,16 +468,17 @@ def MultiClassifier_Model(num_variables,learn_rate=0.001, nClasses):
     model.add(Dense(4,kernel_regularizer=regularizers.l2(0.01)))
     model.add(BatchNormalization())
     model.add(Activation('relu'))
-    model.add(Dense(nClasses, activation='softmax'))
-    # model.add(Dense(1, activation="sigmoid")) 
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification 
     optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy 
+    
     return model
 
-def check_dir(dir):
+def check_dir(dir, Website):
     if not os.path.exists(dir):
         print('mkdir: ', dir)
         os.makedirs(dir)
+        if(Website != ""): os.system("cp %s/../index.php %s"%(dir,dir))
 
 def main():
     print('Using Keras version: ', keras.__version__)
@@ -464,13 +490,16 @@ def main():
     parser.add_argument('-p', '--para', dest='hyp_param_scan', help='Option to run hyper-parameter scan', default=0, type=int)
     parser.add_argument('-i', '--inputs_file_path', dest='inputs_file_path', help='Path to directory containing directories \'Bkgs\' and \'Signal\' which contain background and signal ntuples respectively.', default='', type=str)
     parser.add_argument("--FastCheck", action="store_true", help = "Run with minimal backgrounds, signals and epochs in order to quickly test network configuration")    
+    parser.add_argument("--MultiClass", action="store_true", help = "Train a multiclassifier network")
+    parser.add_argument("--Website", type = str, default = "", help = "Output files to website path")
+    parser.add_argument("--SaveOutput", action="store_true", help = "Save X and Y train and test arrays as pickle files")
     args = parser.parse_args()
     do_model_fit = args.train_model
     suffix = args.suffix
 
     # Create instance of the input files directory
-    #inputs_file_path = 'HHWWgg_DataSignalMCnTuples/2017/'
-    inputs_file_path = '/eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/'
+    inputs_file_path = args.inputs_file_path
+    # inputs_file_path = '/eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/'
 
     hyp_param_scan=args.hyp_param_scan
     # Set model hyper-parameters
@@ -481,23 +510,22 @@ def main():
     if weights == 'BalanceNonWeighted':
         learn_rate = 0.0005
         if(args.FastCheck):
-            epochs = 10
+            epochs = 3
         else: 
             epochs = 200
         batch_size=200
     if weights == 'BalanceYields':
         learn_rate = 0.0001
         if(args.FastCheck):
-            epochs = 10 
+            epochs = 3
         else: 
             epochs = 200
         batch_size=100
-        #epochs = 10
-        #batch_size=200
 
     # Create instance of output directory where all results are saved.
-    output_directory = 'HHWWyyDNN_binary_%s_%s/' % (suffix,weights)
-    check_dir(output_directory)
+    # ol = '/eos/user/a/atishelm/www/HHWWgg/DNN/'
+    output_directory = '%sHHWWyyDNN_%s_%s/' % (args.Website,suffix,weights) 
+    check_dir(output_directory, args.Website)
     hyperparam_file = os.path.join(output_directory,'additional_model_hyper_params.txt')
     additional_hyperparams = open(hyperparam_file,'w')
     additional_hyperparams.write("optimizer: "+optimizer+"\n")
@@ -505,6 +533,7 @@ def main():
     additional_hyperparams.write("epochs: "+str(epochs)+"\n")
     additional_hyperparams.write("validation_split: "+str(validation_split)+"\n")
     additional_hyperparams.write("weights: "+weights+"\n")
+
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
     input_var_jsonFile = open('input_variables.json','r')
@@ -533,7 +562,7 @@ def main():
         print('<train-DNN> Loading data .csv from: %s . . . . ' % (outputdataframe_name))
     else:
         print('<train-DNN> Creating new data .csv @: %s . . . . ' % (inputs_file_path))
-        data = load_data(inputs_file_path,column_headers,selection_criteria)
+        data = load_data(inputs_file_path,column_headers,selection_criteria,args.FastCheck)
         # Change sentinal value to speed up training.
         data = data.mask(data<-25., -9.)
         data = data.mask(data==np.inf, -9.)
@@ -555,7 +584,8 @@ def main():
     print("Total (train+validation) length of HH = %i, bckg = %i" % (nHH, nbckg))
 
     # Make instance of plotter tool
-    Plotter = plotter()
+    Plotter = plotter(args.Website)
+    
     # Create statistically independant training/testing data
     traindataset, valdataset = train_test_split(data, test_size=0.1)
     valdataset.to_csv((output_directory+'valid_dataset.csv'), index=False)
@@ -705,8 +735,13 @@ def main():
     encoded_Y = newencoder.transform(Y_train)
     encoded_Y_test = newencoder.transform(Y_test)
 
+    # Transform to one hot encoded arrays for MultiClassifier 
+    if(args.MultiClass):
+        Y_train = np_utils.to_categorical(encoded_Y)
+        Y_test = np_utils.to_categorical(encoded_Y_test)    
+
     if do_model_fit == 1:
-        print('<train-BinaryDNN> Training new model . . . . ')
+        print('<train-DNN> Training new model . . . . ')
         histories = []
         labels = []
 
@@ -736,24 +771,36 @@ def main():
         else:
             # Define model for analysis
             early_stopping_monitor = EarlyStopping(patience=100, monitor='val_loss', min_delta=0.01, verbose=1)
-            #model = baseline_model(num_variables, learn_rate=learn_rate)
-            model = new_model(num_variables, learn_rate=learn_rate)
-            # MultiClassifier_Model() 
 
+            if(args.MultiClass): 
+                nClasses = 2 ##-- HH, H 
+                model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)  
+            else: 
+                model = new_model(num_variables, learn_rate=learn_rate)
+            
             # Fit the model
             # Batch size = examples before updating weights (larger = faster training)
             # Epoch = One pass over data (useful for periodic logging and evaluation)
             #class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
-            history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
+
+            ##-- Note: Removes early_stopping_monitor. Should only be used for a stable training 
+            if(args.SaveOutput): 
+                csv_logger = CSVLogger('%s/training.log'%(output_directory), separator=',', append=False)   
+                history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[csv_logger])
+            
+            else:
+                history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
             histories.append(history)
             labels.append(optimizer)
+
             # Make plot of loss function evolution
             Plotter.plot_training_progress_acc(histories, labels)
             acc_progress_filename = 'DNN_acc_wrt_epoch'
             Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.png')
             Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.pdf') 
 
-            Plotter.history_plot(history, label='loss')
+            from_log = 0 ##-- Not plotting from a log file, but from a callback 
+            Plotter.history_plot(history, from_log, label='loss')
             Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
             Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')   
     else:
@@ -779,7 +826,7 @@ def main():
         json_file.write(model_json)
     model.summary()
     model_schematic_name = os.path.join(output_directory,'model_schematic.png')
-    #plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_names=True)
+    plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_names=True)
 
     print('================')
     print('Training event labels: ', len(Y_train))
@@ -794,7 +841,19 @@ def main():
     Plotter.plots_directory = plots_dir
     Plotter.output_directory = output_directory
 
-    Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
+    ##-- Save test and training data to study a configuration's output without retraining. NOTE: These files may be very large depending on the number of training events 
+    if(args.SaveOutput):
+        print"[train-DNN.py] - Saving outputs as pickle files"
+        objectsToSave = ["X_test","Y_test","X_train","Y_train","train_df", "labels"]
+        for objToSave in objectsToSave:
+            print"Saving %s..."%(objToSave)
+            executeLine = "pickle.dump( %s , open( '%s/%s.p', 'wb' ) )"%(objToSave, output_directory, objToSave)
+            exec(executeLine)
+
+    if(args.MultiClass):
+        Plotter.ROC_MultiClassifier(model, X_test, Y_test, X_train, Y_train)
+    else: 
+        Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
     Plotter.save_plots(dir=plots_dir, filename='ROC.png')
     Plotter.save_plots(dir=plots_dir, filename='ROC.pdf')
 
