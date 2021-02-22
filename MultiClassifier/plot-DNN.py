@@ -4,7 +4,7 @@
 # Example Commands: 
 #
 # source /cvmfs/sft.cern.ch/lcg/views/LCG_94/x86_64-centos7-gcc7-opt/setup.sh
-# 
+# python plot-DNN.py -s 50Epochs-Multiclass --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass 
 # python plot-DNN.py -s FastCheck-Multiclass --MultiClass --Website /eos/user/a/atishelm/www/HHWWgg/DNN/
 ######################################################################################################################################################################
 
@@ -64,10 +64,15 @@ Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name+'.pdf')
 # acc_progress_filename = 'DNN_acc_wrt_epoch'
 # Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.png')
 # Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.pdf') 
+
 from_log = 1 ##-- obtaining history information from log file 
 Plotter.history_plot(history, from_log, label='loss')
 Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
-Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')   
+Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')  
+
+Plotter.history_plot(history, from_log, label='acc')
+Plotter.save_plots(dir=plots_dir, filename='history_acc.png')
+Plotter.save_plots(dir=plots_dir, filename='history_acc.pdf')  
 
 # Initialise output directory.
 Plotter.plots_directory = plots_dir

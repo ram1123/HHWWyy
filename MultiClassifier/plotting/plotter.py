@@ -107,24 +107,22 @@ class plotter(object):
 
     def history_plot(self, history, from_log, label='accuracy'):
         self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10)) 
-
+        fontsize = 30
         ##-- If obtaining history information from log file, no need for .history method 
         if(from_log):
             plt.plot(history[label])
             plt.plot(history['val_'+label])
-            plt.title('model '+label)
-            plt.ylabel(label)
-            plt.xlabel('epoch')
-            plt.legend(['train', 'test'], loc='best')
-            plt.tight_layout()
         else: 
             plt.plot(history.history[label])
-            plt.plot(history.history['val_'+label])
-            plt.title('model '+label)
-            plt.ylabel(label)
-            plt.xlabel('epoch')
-            plt.legend(['train', 'test'], loc='best')
-            plt.tight_layout()
+            plt.plot(history.history['val_'+label])      
+
+        plt.title('model '+label)
+        plt.ylabel(label, fontsize = fontsize)
+        plt.xlabel('epoch', fontsize = fontsize)
+        plt.xticks(fontsize = fontsize)
+        plt.yticks(fontsize = fontsize)
+        plt.legend(['train', 'test'], loc='best')
+        plt.tight_layout()
 
         return
 
@@ -173,123 +171,146 @@ class plotter(object):
 
     def ROC_MultiClassifier(self, model, X_test, Y_test, X_train, Y_train):
 
+        ##-- Plots:
+        ##-- Model 0 training + Model 1 training 
+        ##-- Model 0 test + Model 1 test 
+
         # Plot linewidth.
         lw = 2
-
         n_classes = 2
-
         Y_test_score = model.predict(X_test)
-        # print"Y_test_score:",Y_test_score
+        Y_train_score = model.predict(X_train)
 
-        # Compute ROC curve and ROC area for each class
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
+        # Compute ROC curve and ROC area for each class and test / train 
+        fpr_test = dict()
+        tpr_test = dict()
+        roc_auc_test = dict()
+
+        fpr_train = dict()
+        tpr_train = dict()
+        roc_auc_train = dict()     
+
         for i in range(n_classes):
-            fpr[i], tpr[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i]) ##-- add training set as well 
-            roc_auc[i] = auc(fpr[i], tpr[i])        
+            ##-- Test
+            fpr_test[i], tpr_test[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i])
+            roc_auc_test[i] = auc(fpr_test[i], tpr_test[i])     
 
-        # Compute micro-average ROC curve and ROC area
-        fpr["micro"], tpr["micro"], _ = roc_curve(Y_test.ravel(), Y_test_score.ravel())
-        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+            ##-- Train
+            fpr_train[i], tpr_train[i], _ = roc_curve(Y_train[:, i], Y_train_score[:, i])
+            roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])                    
+        
+        class_dict = {
+            0 : "HH",
+            1 : "H",
+            2 : "Bkg"
+        }
+
+        datasets = ["test", "train"]
+
+        ##-- Two plots: Class one test + train, Class two test + train 
+        for i in range(n_classes):
+            className = class_dict[i]
+            fig, ax = plt.subplots()
+            for dataset in datasets:
+                exec("fpr = fpr_%s[i]"%(dataset))
+                exec("tpr = tpr_%s[i]"%(dataset))
+                exec("AUC = roc_auc_%s[i]"%(dataset))
+                plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
+                         ''.format(className, dataset, AUC))
+            plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('Multi-Class ROCs: %s'%(className))
+            plt.legend(loc="lower right")
+            save_name = "MultiClass_ROC_class_%s"%(className)
+            plt.savefig("%s/%s.png"%(self.plots_directory,save_name))
+            plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
+            plt.close()
+
+        ##-- Two plots: Test for both classes, train for both classes  
+        for dataset in datasets:
+            fig, ax = plt.subplots()
+            for i in range(n_classes):  
+                className = class_dict[i]
+                exec("fpr = fpr_%s[i]"%(dataset))
+                exec("tpr = tpr_%s[i]"%(dataset))
+                exec("AUC = roc_auc_%s[i]"%(dataset))
+                plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
+                         ''.format(className, dataset, AUC))
+            plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('Multi-Class ROCs: %s'%(dataset))
+            plt.legend(loc="lower right")
+            save_name = "MultiClass_ROC_dataset_%s"%(dataset)
+            plt.savefig("%s/%s.png"%(self.plots_directory,save_name))
+            plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
+            plt.close()            
+
+
+        # colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+        # for i, color in zip(range(n_classes), colors):
+        #     plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+        #             label='ROC curve of class {0} (area = {1:0.2f})'
+        #             ''.format(i, roc_auc[i]))
+
+        # # Compute micro-average ROC curve and ROC area
+        # fpr["micro"], tpr["micro"], _ = roc_curve(Y_test.ravel(), Y_test_score.ravel())
+        # roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
         # Compute macro-average ROC curve and ROC area
 
         # First aggregate all false positive rates
-        all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+        # all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
 
-        # Then interpolate all ROC curves at this points
-        mean_tpr = np.zeros_like(all_fpr)
-        for i in range(n_classes):
-            mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+        # # Then interpolate all ROC curves at this points
+        # mean_tpr = np.zeros_like(all_fpr)
+        # for i in range(n_classes):
+        #     mean_tpr += interp(all_fpr, fpr[i], tpr[i])
 
         # Finally average it and compute AUC
-        mean_tpr /= n_classes
+        # mean_tpr /= n_classes
 
-        fpr["macro"] = all_fpr
-        tpr["macro"] = mean_tpr
-        roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+        # fpr["macro"] = all_fpr
+        # tpr["macro"] = mean_tpr
+        # roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
 
         # Plot all ROC curves
         # plt.figure(1)
-        fig, ax = plt.subplots()
-        plt.plot(fpr["micro"], tpr["micro"],
-                label='micro-average ROC curve (area = {0:0.2f})'
-                    ''.format(roc_auc["micro"]),
-                color='deeppink', linestyle=':', linewidth=4)
 
-        plt.plot(fpr["macro"], tpr["macro"],
-                label='macro-average ROC curve (area = {0:0.2f})'
-                    ''.format(roc_auc["macro"]),
-                color='navy', linestyle=':', linewidth=4)
+        # fig, ax = plt.subplots()
 
-        colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
-        for i, color in zip(range(n_classes), colors):
-            plt.plot(fpr[i], tpr[i], color=color, lw=lw,
-                    label='ROC curve of class {0} (area = {1:0.2f})'
-                    ''.format(i, roc_auc[i]))
+        # plt.plot(fpr["micro"], tpr["micro"],
+        #         label='micro-average ROC curve (area = {0:0.2f})'
+        #             ''.format(roc_auc["micro"]),
+        #         color='deeppink', linestyle=':', linewidth=4)
 
-        plt.plot([0, 1], [0, 1], 'k--', lw=lw)
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Some extension of Receiver operating characteristic to multi-class')
-        plt.legend(loc="lower right")
-        save_name = "MultiClass_ROC"
-        plt.savefig("%s/%s.png"%(self.plots_directory,save_name))
-        plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
-        plt.close()
+        # plt.plot(fpr["macro"], tpr["macro"],
+        #         label='macro-average ROC curve (area = {0:0.2f})'
+        #             ''.format(roc_auc["macro"]),
+        #         color='navy', linestyle=':', linewidth=4)
 
-        # self.save_plots(dir=self.plots_directory, filename=save_name)
-        
-        # plt.show()
+        # colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+        # for i, color in zip(range(n_classes), colors):
+        #     plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+        #             label='ROC curve of class {0} (area = {1:0.2f})'
+        #             ''.format(i, roc_auc[i]))
 
-        # print"len(X_test) before:",len(X_test)
-        # print"len(X_train) before:",len(X_train)
-        # print"len(Y_test) before:",len(Y_test)
-        # print"len(Y_train) before:",len(Y_train)        
-
-        # Y_test = np.copy(Y_test[:,0].transpose())
-        # Y_train = np.copy(Y_train[:,0].transpose())
-
-        # print"len(X_test) after:",len(X_test)
-        # print"len(X_train) after:",len(X_train)
-        # print"len(Y_test) after:",len(Y_test)
-        # print"len(Y_train) after:",len(Y_train)  
-
-        # print("X_test:",X_test)
-        # print("X_train:",X_train)
-        # print("Y_test:",Y_test)
-        # print("Y_train:",Y_train)
-
-        # y_pred_keras_test = model.predict(X_test).ravel()
-        # y_pred_keras_test_onecolumn = model.predict(X_test).ravel()
-
-        # print"y_pred_keras_test:",y_pred_keras_test
-        # print"len(y_pred_keras_test):",len(y_pred_keras_test)
-
-        # Y_test_0 = np.copy(Y_test[:,0].transpose())
-        # Y_train_0 = np.copy(Y_train[:,0].transpose())
-
-        # y_pred_keras_test_0 = np.copy()
-
-        # fpr_keras_test, tpr_keras_test, thresholds_keras_test = roc_curve(Y_test, y_pred_keras_test)
-        # auc_keras_test = auc(fpr_keras_test, tpr_keras_test)
-
-        # y_pred_keras_train = model.predict(X_train).ravel()
-        # fpr_keras_train, tpr_keras_train, thresholds_keras_train = roc_curve(Y_train, y_pred_keras_train)
-        # auc_keras_train = auc(fpr_keras_train, tpr_keras_train) 
-        
-        # self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10)) 
-        # plt.plot([0, 1], [0, 1], 'k--')
-        # plt.plot(fpr_keras_test, tpr_keras_test, label='Test (area = {:.3f})'.format(auc_keras_test))
-        # plt.plot(fpr_keras_train, tpr_keras_train, label='Train (area = {:.3f})'.format(auc_keras_train))
-        # plt.xlabel('False positive rate')
-        # plt.ylabel('True positive rate')
-        # plt.title('ROC curve')
-        # plt.legend(loc='best') 
-        # plt.tight_layout() 
+        # plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+        # plt.xlim([0.0, 1.0])
+        # plt.ylim([0.0, 1.05])
+        # plt.xlabel('False Positive Rate')
+        # plt.ylabel('True Positive Rate')
+        # plt.title('Some extension of Receiver operating characteristic to multi-class')
+        # plt.legend(loc="lower right")
+        # save_name = "MultiClass_ROC"
+        # plt.savefig("%s/%s.png"%(self.plots_directory,save_name))
+        # plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
+        # plt.close()
 
         return         
 

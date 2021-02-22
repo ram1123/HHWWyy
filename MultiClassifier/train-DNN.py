@@ -9,9 +9,16 @@
 ######################################################################################################################################################################
 # Example Commands: 
 #
+#### source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc8-opt
 # source /cvmfs/sft.cern.ch/lcg/views/LCG_94/x86_64-centos7-gcc7-opt/setup.sh
 # 
-# ##-- Output Files to website 
+# ##-- Run Multiclassifier and save all outputs to website 
+# python train-DNN.py -t 1 -s 50Epochs-Multiclass -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput
+#
+# ##-- Run Binary 
+# python train-DNN.py -t 1 -s Binary-10Epochs -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ -e 10 --LessSamples
+#
+# ##-- Run Binary Classifier, output to website 
 # python train-DNN.py -t 1 -s Test-Train-DNN-Binary -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/
 #
 # ##-- Output Files Locally (leave --Website flag empty)
@@ -20,6 +27,7 @@
 # ##-- Run multiclassifier and output to website 
 # python train-DNN.py -t 1 -s FastCheck-Multiclass -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass
 #
+# python train-DNN.py -t 1 -s 100Epochs-MultiClass-2Classes -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput
 ######################################################################################################################################################################
 
 import matplotlib
@@ -28,7 +36,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
-#import shap
+# import shap
 from array import array
 import time
 import pandas
@@ -87,10 +95,12 @@ def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch
     #out = commands.getoutput(eos_cmd)
     return
 
-def load_data(inputPath,variables,criteria,FastCheck):
+def load_data(inputPath,variables,criteria,LessSamples):
     # Load dataset to .csv format file
     my_cols_list=variables
     data = pd.DataFrame(columns=my_cols_list)
+    # keys=['HH','bckg']
+    # keys=['HH','H','bckg']
     keys=['HH','bckg']
     data = pd.DataFrame(columns=my_cols_list)
     for key in keys :
@@ -98,83 +108,91 @@ def load_data(inputPath,variables,criteria,FastCheck):
         if 'HH' in key:
             sampleNames=key
             subdir_name = 'Signal'
+        
+            fileNames = [
+            'GluGluToHHTo2G2Qlnu_node_10_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_11_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_1_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_12_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_2_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_3_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_4_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_5_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_6_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_7_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_8_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_9_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            'GluGluToHHTo2G2Qlnu_node_SM_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            
+            #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_odd_MoreVars',
+            #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_even_MoreVars'
+            ]
 
-            if(FastCheck):
+            if(LessSamples):
                 fileNames = ['GluGluToHHTo2G2Qlnu_node_SM_2017_LO_withNLOweights_HHWWggTag_0_MoreVars']
-            else: 
-                fileNames = [
-                'GluGluToHHTo2G2Qlnu_node_10_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_11_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_1_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_12_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_2_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_3_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_4_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_5_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_6_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_7_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_8_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_9_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                'GluGluToHHTo2G2Qlnu_node_SM_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-                
-                #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_odd_MoreVars',
-                #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_even_MoreVars'
-                ]
+            
+            target = 0
+        # elif key == 'H':
+        #     sampleNames = key
+        #     subdir_name = 'Backgrounds'
+        #     fileNames = ['GluGluHToGG_2017_HHWWggTag_0_MoreVars',
+        #                 'VBFHToGG_2017_HHWWggTag_0_MoreVars',
+        #                 'VHToGG_2017_HHWWggTag_0_MoreVars', 
+        #                 'ttHJetToGG_2017_HHWWggTag_0_MoreVars'] 
+        #     target = 1
 
-            target=1
-        else:
+        elif key == 'bckg':
             sampleNames = key
             subdir_name = 'Backgrounds'
+            fileNames = [
+            #'DiPhotonJetsBox_M40_80_HHWWggTag_0_MoreVars',
+        'DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars',
+        #'GJet_Pt-20to40_HHWWggTag_0_MoreVars',
+            #'GJet_Pt-20toInf_HHWWggTag_0_MoreVars',
+        'GJet_Pt-40toInf_HHWWggTag_0_MoreVars',
+        #'QCD_Pt-30to40_HHWWggTag_0_MoreVars',
+        #'QCD_Pt-30toInf_HHWWggTag_0_MoreVars',
+        #'QCD_Pt-40toInf_HHWWggTag_0_MoreVars',
+        #'DYJetsToLL_M-50_HHWWggTag_0_MoreVars',
+        'TTGG_0Jets_HHWWggTag_0_MoreVars',
+        'TTGJets_TuneCP5_HHWWggTag_0_MoreVars',
+        #'TTJets_HT-600to800_HHWWggTag_0_MoreVars',
+        #'TTJets_HT-800to1200_HHWWggTag_0_MoreVars',
+        #'TTJets_HT-1200to2500_HHWWggTag_0_MoreVars',
+        #'TTJets_HT-2500toInf_HHWWggTag_0_MoreVars',
+        'ttWJets_HHWWggTag_0_MoreVars',
+        'TTJets_TuneCP5_extra_HHWWggTag_0_MoreVars',
+        #'W1JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars',
+        'W1JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars',
+        'W1JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars',
+        'W1JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars',
+        'W1JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars',
+        #'W2JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars',	
+        'W2JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars',
+        'W2JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars',
+        'W2JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars',
+        'W2JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars',
+        #'W3JetsToLNu_HHWWggTag_0_MoreVars',
+        #'W4JetsToLNu_HHWWggTag_0_MoreVars',
+        'WGGJets_HHWWggTag_0_MoreVars',
+        #'WGJJToLNuGJJ_EWK_HHWWggTag_0_MoreVars',
+        'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars',
+        #'WWTo1L1Nu2Q_HHWWggTag_0_MoreVars',
+        #'WW_TuneCP5_HHWWggTag_0_MoreVars',
+            'GluGluHToGG_2017_HHWWggTag_0_MoreVars',
+            'VBFHToGG_2017_HHWWggTag_0_MoreVars',
+            'VHToGG_2017_HHWWggTag_0_MoreVars', 
+            'ttHJetToGG_2017_HHWWggTag_0_MoreVars' 
+            ]
 
-            if(FastCheck):
-                # fileNames = ['ttHJetToGG_2017_HHWWggTag_0_MoreVars']
+            
+            if(LessSamples):
                 fileNames = ['GluGluHToGG_2017_HHWWggTag_0_MoreVars',
-                            'VBFHToGG_2017_HHWWggTag_0_MoreVars',
-                            'VHToGG_2017_HHWWggTag_0_MoreVars', 
-                            'ttHJetToGG_2017_HHWWggTag_0_MoreVars'] 
+                             'VBFHToGG_2017_HHWWggTag_0_MoreVars',
+                             'VHToGG_2017_HHWWggTag_0_MoreVars', 
+                             'ttHJetToGG_2017_HHWWggTag_0_MoreVars'] 
 
-            else: 
-                fileNames = [
-                #'DiPhotonJetsBox_M40_80_HHWWggTag_0_MoreVars',
-            'DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars',
-            #'GJet_Pt-20to40_HHWWggTag_0_MoreVars',
-                #'GJet_Pt-20toInf_HHWWggTag_0_MoreVars',
-            'GJet_Pt-40toInf_HHWWggTag_0_MoreVars',
-            #'QCD_Pt-30to40_HHWWggTag_0_MoreVars',
-            #'QCD_Pt-30toInf_HHWWggTag_0_MoreVars',
-            #'QCD_Pt-40toInf_HHWWggTag_0_MoreVars',
-            #'DYJetsToLL_M-50_HHWWggTag_0_MoreVars',
-            'TTGG_0Jets_HHWWggTag_0_MoreVars',
-            'TTGJets_TuneCP5_HHWWggTag_0_MoreVars',
-            #'TTJets_HT-600to800_HHWWggTag_0_MoreVars',
-            #'TTJets_HT-800to1200_HHWWggTag_0_MoreVars',
-            #'TTJets_HT-1200to2500_HHWWggTag_0_MoreVars',
-            #'TTJets_HT-2500toInf_HHWWggTag_0_MoreVars',
-            'ttWJets_HHWWggTag_0_MoreVars',
-            'TTJets_TuneCP5_extra_HHWWggTag_0_MoreVars',
-            #'W1JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars',
-            'W1JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars',
-            'W1JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars',
-            'W1JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars',
-            'W1JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars',
-            #'W2JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars',	
-            'W2JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars',
-            'W2JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars',
-            'W2JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars',
-            'W2JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars',
-            #'W3JetsToLNu_HHWWggTag_0_MoreVars',
-            #'W4JetsToLNu_HHWWggTag_0_MoreVars',
-            'WGGJets_HHWWggTag_0_MoreVars',
-            #'WGJJToLNuGJJ_EWK_HHWWggTag_0_MoreVars',
-            'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars',
-            #'WWTo1L1Nu2Q_HHWWggTag_0_MoreVars',
-            #'WW_TuneCP5_HHWWggTag_0_MoreVars',
-                #'GluGluHToGG_2017_HHWWggTag_0_MoreVars',
-                #'VBFHToGG_2017_HHWWggTag_0_MoreVars',
-                #'VHToGG_2017_HHWWggTag_0_MoreVars', 
-                #'ttHJetToGG_2017_HHWWggTag_0_MoreVars' 
-                ]
-            target=0
+            target = 1
 
         ##-- Make a dictionary and include from another module? 
         for filen in fileNames:
@@ -489,10 +507,11 @@ def main():
     parser.add_argument('-s', '--suff', dest='suffix', help='Option to choose suffix for training', default='', type=str)
     parser.add_argument('-p', '--para', dest='hyp_param_scan', help='Option to run hyper-parameter scan', default=0, type=int)
     parser.add_argument('-i', '--inputs_file_path', dest='inputs_file_path', help='Path to directory containing directories \'Bkgs\' and \'Signal\' which contain background and signal ntuples respectively.', default='', type=str)
-    parser.add_argument("--FastCheck", action="store_true", help = "Run with minimal backgrounds, signals and epochs in order to quickly test network configuration")    
+    parser.add_argument("--LessSamples", action="store_true", help = "Run with minimal backgrounds, signals in order to quickly test network configuration")    
     parser.add_argument("--MultiClass", action="store_true", help = "Train a multiclassifier network")
     parser.add_argument("--Website", type = str, default = "", help = "Output files to website path")
     parser.add_argument("--SaveOutput", action="store_true", help = "Save X and Y train and test arrays as pickle files")
+    parser.add_argument("-e", "--epochs", type = int, default = 200, help = "Number of epochs to train")
     args = parser.parse_args()
     do_model_fit = args.train_model
     suffix = args.suffix
@@ -509,17 +528,11 @@ def main():
     # hyper-parameter scan results
     if weights == 'BalanceNonWeighted':
         learn_rate = 0.0005
-        if(args.FastCheck):
-            epochs = 3
-        else: 
-            epochs = 200
+        epochs = args.epochs
         batch_size=200
     if weights == 'BalanceYields':
         learn_rate = 0.0001
-        if(args.FastCheck):
-            epochs = 3
-        else: 
-            epochs = 200
+        epochs = args.epochs 
         batch_size=100
 
     # Create instance of output directory where all results are saved.
@@ -562,7 +575,7 @@ def main():
         print('<train-DNN> Loading data .csv from: %s . . . . ' % (outputdataframe_name))
     else:
         print('<train-DNN> Creating new data .csv @: %s . . . . ' % (inputs_file_path))
-        data = load_data(inputs_file_path,column_headers,selection_criteria,args.FastCheck)
+        data = load_data(inputs_file_path,column_headers,selection_criteria,args.LessSamples)
         # Change sentinal value to speed up training.
         data = data.mask(data<-25., -9.)
         data = data.mask(data==np.inf, -9.)
@@ -572,16 +585,21 @@ def main():
         data_nan = data.isin([np.nan]) 
         count_inf = np.isinf(data_inf).values.sum() 
         count_nan = np.isinf(data_nan).values.sum() 
-        if count_inf>0: print "WARNING ---> It contained " + str(count_inf) + " infinite values"  
-        if count_nan>0: print "WARNING ---> It contained " + str(count_nan) + " NaN values"   
+        if count_inf>0: print("WARNING ---> It contained " + str(count_inf) + " infinite values")  
+        if count_nan>0: print("WARNING ---> It contained " + str(count_nan) + " NaN values")   
         data.to_csv(outputdataframe_name, index=False)
         data = pandas.read_csv(outputdataframe_name)
 
     print('<main> data columns: ', (data.columns.values.tolist()))
     n = len(data)
-    nHH = len(data.iloc[data.target.values == 1])
-    nbckg = len(data.iloc[data.target.values == 0])
-    print("Total (train+validation) length of HH = %i, bckg = %i" % (nHH, nbckg))
+    # nHH = len(data.iloc[data.target.values == 1])
+    # nbckg = len(data.iloc[data.target.values == 0])
+
+    nHH = len(data.iloc[data.target.values == 0])
+    nH = len(data.iloc[data.target.values == 1])
+    nbckg = len(data.iloc[data.target.values == 2])
+
+    print("Total (train+validation) length of HH = %i, H = %i, bckg = %i" % (nHH, nH, nbckg))
 
     # Make instance of plotter tool
     Plotter = plotter(args.Website)
@@ -714,6 +732,9 @@ def main():
     train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)
     test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)
 
+    # print("train_weights:",train_weights)
+    # print("test_weights:",test_weights)
+
     # Weights applied during training.
     if weights=='BalanceYields':
         #trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']*traindataset.loc[:,'weight_NLO_SM']
@@ -773,7 +794,8 @@ def main():
             early_stopping_monitor = EarlyStopping(patience=100, monitor='val_loss', min_delta=0.01, verbose=1)
 
             if(args.MultiClass): 
-                nClasses = 2 ##-- HH, H 
+                nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
+                # nClasses = 3 ##-- HH, H, Bkg (continuum) 
                 model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)  
             else: 
                 model = new_model(num_variables, learn_rate=learn_rate)
@@ -793,16 +815,15 @@ def main():
             histories.append(history)
             labels.append(optimizer)
 
-            # Make plot of loss function evolution
-            Plotter.plot_training_progress_acc(histories, labels)
-            acc_progress_filename = 'DNN_acc_wrt_epoch'
-            Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.png')
-            Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.pdf') 
-
             from_log = 0 ##-- Not plotting from a log file, but from a callback 
             Plotter.history_plot(history, from_log, label='loss')
             Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
             Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')   
+
+            Plotter.history_plot(history, from_log, label='acc')
+            Plotter.save_plots(dir=plots_dir, filename='history_acc.png')
+            Plotter.save_plots(dir=plots_dir, filename='history_acc.pdf')  
+
     else:
         model_name = os.path.join(output_directory,'model.h5')
         model = load_trained_model(model_name)
@@ -813,7 +834,7 @@ def main():
 
     # Node probabilities for testing sample events
     result_probs_test = model.predict(np.array(X_test))
-    result_classes_test = model.predict_classes(np.array(X_test))
+    #result_classes_test = model.predict_classes(np.array(X_test))
 
     # Store model in file
     model_output_name = os.path.join(output_directory,'model.h5')
@@ -827,6 +848,8 @@ def main():
     model.summary()
     model_schematic_name = os.path.join(output_directory,'model_schematic.png')
     plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_names=True)
+    model_schematic_name = os.path.join(output_directory,'model_schematic.pdf')
+    plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_names=True)    
 
     print('================')
     print('Training event labels: ', len(Y_train))
@@ -843,18 +866,34 @@ def main():
 
     ##-- Save test and training data to study a configuration's output without retraining. NOTE: These files may be very large depending on the number of training events 
     if(args.SaveOutput):
-        print"[train-DNN.py] - Saving outputs as pickle files"
-        objectsToSave = ["X_test","Y_test","X_train","Y_train","train_df", "labels"]
+        print("[train-DNN.py] - Saving outputs as pickle files")
+        objectsToSave = ["X_test","Y_test","X_train","Y_train","train_df", "labels", "train_weights", "test_weights"]
         for objToSave in objectsToSave:
-            print"Saving %s..."%(objToSave)
+            print("Saving %s..."%(objToSave))
             executeLine = "pickle.dump( %s , open( '%s/%s.p', 'wb' ) )"%(objToSave, output_directory, objToSave)
             exec(executeLine)
+
+    # Make overfitting plots of output nodes
+    # Plotter.binary_overfitting(model, Y_train, Y_test, result_probs, result_probs_test, plots_dir, train_weights, test_weights)
+    # e = shap.DeepExplainer(model, X_train[:400, ])
+    # shap_values = e.shap_values(X_test[:400, ])
+    # Plotter.plot_dot(title="DeepExplainer_sigmoid_y0", x=X_test[:400, ], shap_values=shap_values, column_headers=column_headers)
+    # Plotter.plot_dot_bar(title="DeepExplainer_Bar_sigmoid_y0", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
+
+    #e = shap.GradientExplainer(model, X_train[:100, ])
+    #shap_values = e.shap_values(X_test[:100, ])
+    #Plotter.plot_dot(title="GradientExplainer_sigmoid_y0", x=X_test[:100, ], shap_values=shap_values, column_headers=column_headers)
+    #e = shap.KernelExplainer(model.predict, X_train[:100, ])
+    #shap_values = e.shap_values(X_test[:100, ])
+    #Plotter.plot_dot(title="KernelExplainer_sigmoid_y0", x=X_test[:100, ],shap_values=shap_values, column_headers=column_headers)
+    #Plotter.plot_dot_bar(title="KernelExplainer_Bar_sigmoid_y0", x=X_test[:100,], shap_values=shap_values, column_headers=column_headers)
+    #Plotter.plot_dot_bar_all(title="KernelExplainer_bar_All_Var_sigmoid_y0", x=X_test[:100,], shap_values=shap_values, column_headers=column_headers)
 
     if(args.MultiClass):
         Plotter.ROC_MultiClassifier(model, X_test, Y_test, X_train, Y_train)
     else: 
         Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
-    Plotter.save_plots(dir=plots_dir, filename='ROC.png')
-    Plotter.save_plots(dir=plots_dir, filename='ROC.pdf')
+        Plotter.save_plots(dir=plots_dir, filename='ROC.png')
+        Plotter.save_plots(dir=plots_dir, filename='ROC.pdf')
 
 main()
