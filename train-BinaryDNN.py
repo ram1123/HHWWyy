@@ -22,6 +22,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import MinMaxScaler
@@ -74,39 +75,41 @@ def load_data(inputPath,variables,criteria):
         if 'HH' in key:
             sampleNames=key
             subdir_name = 'Signal'
-            fileNames = ['ggF_SM_WWgg_qqqq_Hadded']
+            fileNames = ['GluGluToHHTo2G4Q_node_cHHH1_2017']
             target=1
         else:
             sampleNames= key
             subdir_name = 'Backgrounds'
-            fileNames = ['GJet_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
-                         'GJet_Pt-20to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
-                         'QCD_Pt-30to40_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
-                         'QCD_Pt-40toInf_DoubleEMEnriched_MGG-80toInf_TuneCP5_13TeV_Pythia8',
-                         'TTGJets_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8'
+            fileNames = ['GJet_Pt-20to40',
+                         'GJet_Pt-40toInf',
+                         'QCD_Pt-30to40',
+                         'QCD_Pt-40toInf',
+                         # 'TTGJets_TuneCP5',
+                         # 'TTToHadronic',
+                         'ttHJetToGG'
                         ]
             target=0
 
         for filen in fileNames:
-            if 'ggF_SM_WWgg_qqqq_Hadded' in filen:
-                treename=['tagsDumper/trees/GluGluToHHTo_WWgg_qqqq_nodeSM_13TeV_HHWWggTag_2']
+            if 'GluGluToHHTo2G4Q_node_cHHH1_2017' in filen:
+                treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
                 process_ID = 'HH'
             elif 'QCD_Pt-30to40' in filen:
-                treename=['tagsDumper/trees/QCD_Pt_30to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                treename=['QCD_Pt_30to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
                 process_ID = 'QCD'
             elif 'QCD_Pt-40toInf' in filen:
-                treename=['tagsDumper/trees/QCD_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                treename=['QCD_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
                 process_ID = 'QCD'
             elif 'DiPhotonJetsBox_MGG' in filen:
                 treename=['DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa',
                 ]
                 process_ID = 'DiPhoton'
             elif 'GJet_Pt-20to40' in filen:
-                treename=['tagsDumper/trees/GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                treename=['GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
                 process_ID = 'GJet'
             elif 'GJet_Pt-40toInf' in filen:
                 # treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8']
-                treename=['tagsDumper/trees/GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_2']
+                treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_1']
                 process_ID = 'GJet'
             elif 'DYJetsToLL_M-50_TuneCP5' in filen:
                 treename=['DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8',
@@ -184,7 +187,7 @@ def load_data(inputPath,variables,criteria):
                 ]
                 process_ID = 'WJets'
             elif 'ttHJetToGG' in filen:
-                treename=['ttHJetToGG_M125_13TeV_amcatnloFXFX_madspin_pythia8',
+                treename=['tth_125_13TeV_HHWWggTag_1',
                 ]
                 process_ID = 'ttH'
 
@@ -194,8 +197,12 @@ def load_data(inputPath,variables,criteria):
             print("treename: ", treename[0])
 
             tree = uproot.open(filename_fullpath)[treename[0]]
-            chunk_df_all = tree.arrays(cut=criteria,library='pd')
-            chunk_df     = tree.arrays(filter_name=my_cols_list,cut=criteria,library='pd')
+
+            #FIXME: Check how to add cut
+            # chunk_df_all = tree.arrays(cut=criteria,library='pd')
+            chunk_df_all = tree.arrays(library='pd')
+            # chunk_df     = tree.arrays(filter_name=my_cols_list,cut=criteria,library='pd')
+            chunk_df     = tree.arrays(filter_name=my_cols_list,library='pd')
             # print(chunk_df)
 
             # my_cols_list=set(my_cols_list)
@@ -246,15 +253,15 @@ def baseline_model(
     model = Sequential()
     model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer=init_mode,activation=activation))
     # model.add(Dropout(dropout_rate))
-    # model.add(Dense(39,activation=activation))
+    model.add(Dense(39,activation=activation))
     # model.add(Dropout(dropout_rate))
     # model.add(Dense(117,activation=activation))
     # model.add(Dropout(dropout_rate))
     # model.add(Dense(86,activation=activation))
     # model.add(Dropout(dropout_rate))
-    # model.add(Dense(43,activation=activation))
+    model.add(Dense(43,activation=activation))
     # model.add(Dropout(dropout_rate))
-    # model.add(Dense(11,activation=activation))
+    model.add(Dense(13,activation=activation))
     model.add(Dense(1, activation='sigmoid'))
     #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
     # optimizer=Nadam(lr=learn_rate)
@@ -272,9 +279,16 @@ def baseline_model(
         model.compile(loss='binary_crossentropy',optimizer=Adagrad(lr=learn_rate),metrics=['acc'])
     return model
 
-def gscv_model(optimizer="Adam",learn_rate=0.001):
+def gscv_model(
+               num_variables=13,
+               optimizer="Adam",
+               activation='relu',
+               dropout_rate=0.0,
+               init_mode='glorot_normal',
+               learn_rate=0.001
+               ):
     model = Sequential()
-    model.add(Dense(13,input_dim=13,kernel_initializer='glorot_normal',activation='relu'))
+    model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer=init_mode,activation=activation))
     # model.add(Dense(39,activation='relu'))
     # model.add(Dense(117,activation='relu'))
     # model.add(Dense(86,activation='relu'))
@@ -316,7 +330,8 @@ def main():
     suffix = args.suffix
 
     # Create instance of the input files directory
-    inputs_file_path = '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples/'
+    # inputs_file_path = '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples/'
+    inputs_file_path = '/Users/ramkrishna/cernbox/post_doc_ihep/Machine-Learning/HHWWyy/MVANtuples/New_2021/'
 
     hyp_param_scan=args.hyp_param_scan
     # Set model hyper-parameters
@@ -358,7 +373,8 @@ def main():
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
     input_var_jsonFile = open('input_variables.json','r')
-    selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) '
+    selection_criteria = ''
+    # selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) '
     # selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) & ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) & (passbVeto==1) & (ExOneLep==0) & (N_goodJets>=4))'
     #selection_criteria = '( ((Leading_Photon_pt/CMS_hgg_mass) > 0.35) && ((Subleading_Photon_pt/CMS_hgg_mass) > 0.25) && passbVeto==1 && ExOneLep==1 && N_goodJets>=1)'
 
@@ -551,18 +567,22 @@ def main():
             time_str = str(time.localtime())+'\n'
             hyp_param_scan_results.write(time_str+'\n')
             hyp_param_scan_results.write(weights+'\n')
-            learn_rate = [0.0001]
             # learn_rate = [0.00001, 0.0001, 0.001, 0.01]
-            # epochs = [100]
-            epochs = [10, 50, 100, 150, 200, 300]
-            # batch_size = [100]
-            batch_size = [60, 80, 100, 150, 200, 250, 300, 350, 400]
-            optimizer = ['Adam']
-            # optimizer = ['Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+            learn_rate = np.random.uniform(0.000001,0.5)
+            # epochs = np.random.randint(100,700)
+            epochs = [300]
+            # epochs = [10, 50, 100, 150, 200, 300]
+            batch_size = np.random.randint(100,500)
+            # batch_size = [100, 150, 200, 250, 300, 350, 400]
+            # optimizer = ['Adam']
+            optimizer = ['Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
             param_grid = dict(learn_rate=learn_rate,epochs=epochs,batch_size=batch_size,optimizer=optimizer)
-            model = KerasClassifier(build_fn=gscv_model,verbose=0)
-            grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
-            grid_result = grid.fit(X_train,Y_train,shuffle=True,sample_weight=trainingweights)
+            model = KerasClassifier(build_fn=gscv_model,verbose=1)
+            n_iter_search = 16 # Number of parameter settings that are sampled.
+            # grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
+            grid = RandomizedSearchCV(estimator=model, param_distributions=param_grid, n_iter=n_iter_search, n_jobs=-1)
+            # grid_result = grid.fit(X_train,Y_train,shuffle=True,sample_weight=trainingweights)
+            grid_result = grid.fit(X_train,Y_train,sample_weight=trainingweights)
             print("Best score: %f , best params: %s" % (grid_result.best_score_,grid_result.best_params_))
             dnn_parameter['Optimized_FH'][0]['epochs'] = grid_result.best_params_['epochs']
             dnn_parameter['Optimized_FH'][0]['batch_size'] = grid_result.best_params_['batch_size']
