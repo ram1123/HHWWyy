@@ -200,9 +200,12 @@ def load_data(inputPath,variables,criteria):
 
             #FIXME: Check how to add cut
             # chunk_df_all = tree.arrays(cut=criteria,library='pd')
-            chunk_df_all = tree.arrays(library='pd')
+            chunk_df_all_temp = tree.arrays(library='pd')
             # chunk_df     = tree.arrays(filter_name=my_cols_list,cut=criteria,library='pd')
-            chunk_df     = tree.arrays(filter_name=my_cols_list,library='pd')
+            chunk_df_temp     = tree.arrays(filter_name=my_cols_list,library='pd')
+
+            chunk_df_all = chunk_df_all_temp[chunk_df_all_temp]
+            chunk_df     = chunk_df_temp
             # print(chunk_df)
 
             # my_cols_list=set(my_cols_list)
