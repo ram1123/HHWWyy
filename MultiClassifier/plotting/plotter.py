@@ -121,7 +121,7 @@ class plotter(object):
         plt.xlabel('epoch', fontsize = fontsize)
         plt.xticks(fontsize = fontsize)
         plt.yticks(fontsize = fontsize)
-        plt.legend(['train', 'test'], loc='best')
+        plt.legend(['train', 'test'], loc='best', prop={'size' : 40})
         plt.tight_layout()
 
         return
@@ -177,7 +177,7 @@ class plotter(object):
 
         # Plot linewidth.
         lw = 2
-        n_classes = 2
+        n_classes = 3
         Y_test_score = model.predict(X_test)
         Y_train_score = model.predict(X_train)
 

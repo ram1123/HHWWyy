@@ -9,11 +9,12 @@
 ######################################################################################################################################################################
 # Example Commands: 
 #
-#### source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc8-opt
+#### source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc8-opt/setup.sh 
 # source /cvmfs/sft.cern.ch/lcg/views/LCG_94/x86_64-centos7-gcc7-opt/setup.sh
 # 
 # ##-- Run Multiclassifier and save all outputs to website 
-# python train-DNN.py -t 1 -s 50Epochs-Multiclass -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput
+# python train-DNN.py -t 1 -s 5Epochs-3ClassMulticlass_EvenSingleH_Run2 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 5
+# python train-DNN.py -t 1 -s 200Epochs-3ClassMulticlass_EvenSingleH_Run2 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 200
 #
 # ##-- Run Binary 
 # python train-DNN.py -t 1 -s Binary-10Epochs -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ -e 10 --LessSamples
@@ -32,7 +33,6 @@
 
 import matplotlib
 matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
@@ -58,31 +58,16 @@ from sklearn.metrics import roc_curve
 import os
 from os import environ
 os.environ['KERAS_BACKEND'] = 'tensorflow'
-import keras
-from keras import backend as K
-from keras.utils import np_utils
-from keras.utils import plot_model
-from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.layers.core import Activation
-from keras.layers.core import Flatten
-from keras.optimizers import Adam
-from keras.optimizers import Adamax
-from keras.optimizers import Nadam
-from keras.optimizers import Adadelta
-from keras.optimizers import Adagrad
-from keras.layers import Dropout
-from keras.layers import BatchNormalization
-from keras.models import load_model
-from keras import regularizers
-from keras.wrappers.scikit_learn import KerasClassifier
 from keras.callbacks import EarlyStopping
 from plotting.plotter import plotter
 from numpy.testing import assert_allclose
 from keras.callbacks import ModelCheckpoint
 from root_numpy import root2array, tree2array
-# import json 
 from keras.callbacks import CSVLogger
+from keras.utils.vis_utils import model_to_dot
+
+##-- External Modules 
+from python.trainDNNTools import * 
 
 seed = 7
 np.random.seed(7)
@@ -99,9 +84,7 @@ def load_data(inputPath,variables,criteria,LessSamples):
     # Load dataset to .csv format file
     my_cols_list=variables
     data = pd.DataFrame(columns=my_cols_list)
-    # keys=['HH','bckg']
-    # keys=['HH','H','bckg']
-    keys=['HH','bckg']
+    keys=['HH','H','bckg']
     data = pd.DataFrame(columns=my_cols_list)
     for key in keys :
         print('key: ', key)
@@ -110,6 +93,22 @@ def load_data(inputPath,variables,criteria,LessSamples):
             subdir_name = 'Signal'
         
             fileNames = [
+            ##-- 2016 
+            # 'GluGluToHHTo2G2Qlnu_node_10_2016_LO_withNLO_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+            # 'GluGluToHHTo2G2Qlnu_node_11_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_1_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_12_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_2_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_3_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_4_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_5_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_6_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_7_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_8_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_9_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_SM_2016_LO_withNLOweights_HHWWggTag_0_MoreVars',  
+
+            ##-- 2017               
             'GluGluToHHTo2G2Qlnu_node_10_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
             'GluGluToHHTo2G2Qlnu_node_11_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
             'GluGluToHHTo2G2Qlnu_node_1_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
@@ -123,275 +122,159 @@ def load_data(inputPath,variables,criteria,LessSamples):
             'GluGluToHHTo2G2Qlnu_node_8_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
             'GluGluToHHTo2G2Qlnu_node_9_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
             'GluGluToHHTo2G2Qlnu_node_SM_2017_LO_withNLOweights_HHWWggTag_0_MoreVars',
-            
-            #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_odd_MoreVars',
-            #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_even_MoreVars'
+
+            ##-- 2018 
+            # 'GluGluToHHTo2G2Qlnu_node_10_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_11_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_1_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_12_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_2_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_3_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_4_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_5_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_6_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_7_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_8_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_9_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+            # 'GluGluToHHTo2G2Qlnu_node_SM_2018_LO_withNLOweights_HHWWggTag_0_MoreVars',
+
+            #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_odd_MoreVars_kinWeight_noHgg',
+            #'GluGluToHHTo2G2Qlnu_node_cHHH1_2017_HHWWggTag_0_even_MoreVars_kinWeight_noHgg'
             ]
 
             if(LessSamples):
                 fileNames = ['GluGluToHHTo2G2Qlnu_node_SM_2017_LO_withNLOweights_HHWWggTag_0_MoreVars']
             
             target = 0
-        # elif key == 'H':
-        #     sampleNames = key
-        #     subdir_name = 'Backgrounds'
-        #     fileNames = ['GluGluHToGG_2017_HHWWggTag_0_MoreVars',
-        #                 'VBFHToGG_2017_HHWWggTag_0_MoreVars',
-        #                 'VHToGG_2017_HHWWggTag_0_MoreVars', 
-        #                 'ttHJetToGG_2017_HHWWggTag_0_MoreVars'] 
-        #     target = 1
+
+        elif key == 'H':
+            sampleNames = key
+            subdir_name = 'Backgrounds'
+            fileNames = [
+                        ##-- 2016 
+                        # 'GluGluHToGG_M125_2016_HHWWggTag_0_MoreVars_even',
+                        # 'VBFHToGG_M125_2016_HHWWggTag_0_MoreVars_even',
+                        'VHToGG_M125_2016_HHWWggTag_0_MoreVars_even', 
+                        'ttHJetToGG_M125_2016_HHWWggTag_0_MoreVars_even',
+
+                        # ##-- 2017 
+                        # # 'GluGluHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        # # 'VBFHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        'VHToGG_2017_HHWWggTag_0_MoreVars_even', 
+                        'ttHJetToGG_2017_HHWWggTag_0_MoreVars_even',
+
+                        # ##-- 2018  
+                        # # 'GluGluHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        # # 'VBFHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        'VHToGG_M125_2018_HHWWggTag_0_MoreVars_even', 
+                        'ttHJetToGG_2018_M125_HHWWggTag_0_MoreVars_even',                        
+                        ] 
+            target = 1
 
         elif key == 'bckg':
             sampleNames = key
             subdir_name = 'Backgrounds'
             fileNames = [
-            #'DiPhotonJetsBox_M40_80_HHWWggTag_0_MoreVars',
-        'DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars',
-        #'GJet_Pt-20to40_HHWWggTag_0_MoreVars',
-            #'GJet_Pt-20toInf_HHWWggTag_0_MoreVars',
-        'GJet_Pt-40toInf_HHWWggTag_0_MoreVars',
-        #'QCD_Pt-30to40_HHWWggTag_0_MoreVars',
-        #'QCD_Pt-30toInf_HHWWggTag_0_MoreVars',
-        #'QCD_Pt-40toInf_HHWWggTag_0_MoreVars',
-        #'DYJetsToLL_M-50_HHWWggTag_0_MoreVars',
-        'TTGG_0Jets_HHWWggTag_0_MoreVars',
-        'TTGJets_TuneCP5_HHWWggTag_0_MoreVars',
-        #'TTJets_HT-600to800_HHWWggTag_0_MoreVars',
-        #'TTJets_HT-800to1200_HHWWggTag_0_MoreVars',
-        #'TTJets_HT-1200to2500_HHWWggTag_0_MoreVars',
-        #'TTJets_HT-2500toInf_HHWWggTag_0_MoreVars',
-        'ttWJets_HHWWggTag_0_MoreVars',
-        'TTJets_TuneCP5_extra_HHWWggTag_0_MoreVars',
-        #'W1JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars',
-        'W1JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars',
-        'W1JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars',
-        'W1JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars',
-        'W1JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars',
-        #'W2JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars',	
-        'W2JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars',
-        'W2JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars',
-        'W2JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars',
-        'W2JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars',
-        #'W3JetsToLNu_HHWWggTag_0_MoreVars',
-        #'W4JetsToLNu_HHWWggTag_0_MoreVars',
-        'WGGJets_HHWWggTag_0_MoreVars',
-        #'WGJJToLNuGJJ_EWK_HHWWggTag_0_MoreVars',
-        'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars',
-        #'WWTo1L1Nu2Q_HHWWggTag_0_MoreVars',
-        #'WW_TuneCP5_HHWWggTag_0_MoreVars',
-            'GluGluHToGG_2017_HHWWggTag_0_MoreVars',
-            'VBFHToGG_2017_HHWWggTag_0_MoreVars',
-            'VHToGG_2017_HHWWggTag_0_MoreVars', 
-            'ttHJetToGG_2017_HHWWggTag_0_MoreVars' 
+            #'DiPhotonJetsBox_M40_80_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        'DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        #'GJet_Pt-20to40_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+            #'GJet_Pt-20toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        'GJet_Pt-40toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg', 
+
+        #'QCD_Pt-30to40_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'QCD_Pt-30toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'QCD_Pt-40toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'DYJetsToLL_M-50_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        'TTGG_0Jets_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'TTGJets_TuneCP5_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        #'TTJets_HT-600to800_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'TTJets_HT-800to1200_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'TTJets_HT-1200to2500_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'TTJets_HT-2500toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        'ttWJets_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'TTJets_TuneCP5_extra_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        #'W1JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        'W1JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'W1JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'W1JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'W1JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        #'W2JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars_kinWeight_noHgg',	
+
+        'W2JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'W2JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'W2JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'W2JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        #'W3JetsToLNu_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'W4JetsToLNu_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        'WGGJets_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'WGJJToLNuGJJ_EWK_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+
+        # 'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'WWTo1L1Nu2Q_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        #'WW_TuneCP5_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+            # 'GluGluHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+            # 'VBFHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+            # 'VHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg', 
+            # 'ttHJetToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg' 
             ]
 
             
             if(LessSamples):
-                fileNames = ['GluGluHToGG_2017_HHWWggTag_0_MoreVars',
-                             'VBFHToGG_2017_HHWWggTag_0_MoreVars',
-                             'VHToGG_2017_HHWWggTag_0_MoreVars', 
-                             'ttHJetToGG_2017_HHWWggTag_0_MoreVars'] 
+                fileNames = ['DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg'] 
 
-            target = 1
-
-        ##-- Make a dictionary and include from another module? 
+            target = 2
         for filen in fileNames:
-            if 'GluGluToHHTo2G2Qlnu_node_cHHH1_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_cHHH1_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'
-            elif 'GluGluToHHTo2G2Qlnu_node_10_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_10_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH' 
-            elif 'GluGluToHHTo2G2Qlnu_node_11_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_11_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'  
-            elif 'GluGluToHHTo2G2Qlnu_node_1_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_1_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'  
-            elif 'GluGluToHHTo2G2Qlnu_node_12_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_12_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'  
-            elif 'GluGluToHHTo2G2Qlnu_node_2_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_2_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'  
-            elif 'GluGluToHHTo2G2Qlnu_node_3_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_3_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH' 
-            elif 'GluGluToHHTo2G2Qlnu_node_4_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_4_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH' 
-            elif 'GluGluToHHTo2G2Qlnu_node_5_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_5_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'      
-            elif 'GluGluToHHTo2G2Qlnu_node_6_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_6_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH' 
-            elif 'GluGluToHHTo2G2Qlnu_node_7_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_7_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'      
-            elif 'GluGluToHHTo2G2Qlnu_node_8_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_8_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'  
-            elif 'GluGluToHHTo2G2Qlnu_node_9_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_9_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'  
-            elif 'GluGluToHHTo2G2Qlnu_node_SM_2017' in filen:
-                treename=['GluGluToHHTo2G2Qlnu_node_SM_13TeV_HHWWggTag_0_v1']
-                process_ID = 'HH'     
-            elif 'GluGluHToGG' in filen:
-                treename=['ggh_125_13TeV_HHWWggTag_0_v1']
-                process_ID = 'Hgg'
-            elif 'VBFHToGG' in filen:
-                treename=['vbf_125_13TeV_HHWWggTag_0_v1']
-                process_ID = 'Hgg'
-            elif 'VHToGG' in filen:
-                treename=['wzh_125_13TeV_HHWWggTag_0_v1']
-                process_ID = 'Hgg'  
-            elif 'ttHJetToGG' in filen:
-                treename=['tth_125_13TeV_HHWWggTag_0_v1']
-                process_ID = 'Hgg'
-            elif 'DiPhotonJetsBox_M40_80' in filen:
-                treename=['DiPhotonJetsBox_M40_80_Sherpa_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'DiPhoton'
-            elif 'DiPhotonJetsBox_MGG-80toInf' in filen:
-                treename=['DiPhotonJetsBox_MGG_80toInf_13TeV_Sherpa_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'DiPhoton'
-            elif 'GJet_Pt-20to40' in filen:
-                treename=['GJet_Pt_20to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'GJet'
-            elif 'GJet_Pt-20toInf' in filen:
-                treename=['GJet_Pt_20toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'GJet'
-            elif 'GJet_Pt-40toInf' in filen:
-                treename=['GJet_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'GJet'
-            elif 'QCD_Pt-30to40' in filen:
-                treename=['QCD_Pt_30to40_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'QCD'
-            elif 'QCD_Pt-30toInf' in filen:
-                treename=['QCD_Pt_30toInf_DoubleEMEnriched_MGG_40to80_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'QCD'
-            elif 'QCD_Pt-40toInf' in filen:
-                treename=['QCD_Pt_40toInf_DoubleEMEnriched_MGG_80toInf_TuneCP5_13TeV_Pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'DY'
-            elif 'DYJetsToLL_M-50' in filen:
-                treename=['DYJetsToLL_M_50_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTGG_0Jets' in filen:
-                treename=['TTGG_0Jets_TuneCP5_13TeV_amcatnlo_madspin_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTGJets_TuneCP5' in filen:
-                treename=['TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTJets_HT-600to800' in filen:
-                treename=['TTJets_HT_600to800_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTJets_HT-800to1200' in filen:
-                treename=['TTJets_HT_800to1200_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTJets_HT-1200to2500' in filen:
-                treename=['TTJets_HT_1200to2500_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTJets_HT-2500toInf' in filen:
-                treename=['TTJets_HT_2500toInf_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'ttWJets' in filen:
-                treename=['ttWJets_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'TTGsJets'
-            elif 'TTJets_TuneCP5_extra' in filen:
-                treename=['TTJets_TuneCP5_13TeV_amcatnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W1JetsToLNu_LHEWpT_0-50' in filen:
-                treename=['W1JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W1JetsToLNu_LHEWpT_50-150' in filen:
-                treename=['W1JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W1JetsToLNu_LHEWpT_150-250' in filen:
-                treename=['W1JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W1JetsToLNu_LHEWpT_250-400' in filen:
-                treename=['W1JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W1JetsToLNu_LHEWpT_400-inf' in filen:
-                treename=['W1JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W2JetsToLNu_LHEWpT_0-50' in filen:
-                treename=['W2JetsToLNu_LHEWpT_0_50_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W2JetsToLNu_LHEWpT_50-150' in filen:
-                treename=['W2JetsToLNu_LHEWpT_50_150_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W2JetsToLNu_LHEWpT_150-250' in filen:
-                treename=['W2JetsToLNu_LHEWpT_150_250_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W2JetsToLNu_LHEWpT_250-400' in filen:
-                treename=['W2JetsToLNu_LHEWpT_250_400_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W2JetsToLNu_LHEWpT_400-inf' in filen:
-                treename=['W2JetsToLNu_LHEWpT_400_inf_TuneCP5_13TeV_amcnloFXFX_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W3JetsToLNu' in filen:
-                treename=['W3JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'W4JetsToLNu' in filen:
-                treename=['W4JetsToLNu_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'WGGJets' in filen:
-                treename=['WGGJets_TuneCP5_13TeV_madgraphMLM_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'WGJJToLNuGJJ_EWK' in filen:
-                treename=['WGJJToLNuGJJ_EWK_aQGC_FS_FM_TuneCP5_13TeV_madgraph_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets'
-            elif 'WGJJToLNu_EWK_QCD' in filen:
-                treename=['WGJJToLNu_EWK_QCD_TuneCP5_13TeV_madgraph_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WGsJets' 
-            elif 'WWTo1L1Nu2Q' in filen:
-                treename=['WWTo1L1Nu2Q_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WW'
-            elif 'WW_TuneCP5' in filen:
-                treename=['WW_TuneCP5_13TeV_pythia8_13TeV_HHWWggTag_0',
-                ]
-                process_ID = 'WW'
+            treename, process_ID = GetFileInfo(filen)
+            print("filen:",filen)
 
-            fileName = os.path.join(subdir_name,filen)
-            filename_fullpath = inputPath+"/"+fileName+".root"
+            ##-- if 2016 or 2018 HH or H, replace 2017 in hardcoded path with 2016 or 2018 
+            if(target == 1):
+                inputPath_ = "/eos/user/a/atishelm/ntuples/HHWWgg_DNN/EvenOddNtuples/"
+                if("2016" in filen):
+                    subdir_name_ = "2016"
+                elif("2017" in filen):
+                    subdir_name_ = "2017"
+                    # inputPath_ = "/eos/user/a/atishelm/ntuples/HHWWgg_DNN/EvenOddNtuples/"
+                    # inputPath_ = "%s"%(inputPath)
+                    # inputPath_ = inputPath_.replace("2017", "2016")                    
+                    # subdir_name_ = "Single_H_hadded"              
+                    # inputPath_ = inputPath[:].replace("2017", "2016")
+                    # subdir_name_ = "Single_H_hadded" subdir_name.replace("Backgrounds", "Single_H_hadded")
+                elif("2018" in filen):
+                    subdir_name_ = "2018"
+                    # inputPath_ = "%s"%(inputPath)
+                    # inputPath_ = inputPath_.replace("2017", "2018")
+                    # inputPath_ = inputPath[:].replace("2017", "2018")  
+                    # subdir_name_ = "Single_H_2018_hadded"              
+                    # subdir_name_ = subdir_name.replace("Backgrounds", "Single_H_hadded")
+                else: 
+                    subdir_name_ = "%s"%(subdir_name) 
+                    inputPath_ = "%s"%(inputPath)
+            else: 
+                subdir_name_ = "%s"%(subdir_name) 
+                inputPath_ = "%s"%(inputPath)            
+
+            fileName = os.path.join(subdir_name_,filen)
+
+            # filename_fullpath = inputPath+"/"+fileName+".root"
+            filename_fullpath = "%s/%s.root"%(inputPath_, fileName)
+            # filename_fullpath = inputPath_ + "/" + fileName + ".root"
             print("Input file: ", filename_fullpath)
+            # print("treename:",treename)
             tfile = ROOT.TFile(filename_fullpath)
             for tname in treename:
+                # print("tname:",tname)
                 ch_0 = tfile.Get(tname)
                 if ch_0 is not None :
                     criteria_tmp = criteria 
@@ -408,6 +291,7 @@ def load_data(inputPath,variables,criteria,LessSamples):
                     chunk_df['target']=target
                     chunk_df['weight']=chunk_df['weight']
                     chunk_df['weight_NLO_SM']=chunk_df['weight_NLO_SM']
+                    chunk_df['kinWeight']=chunk_df['kinWeight']
                     chunk_df['process_ID']=process_ID
                     chunk_df['classweight']=1.0
                     chunk_df['unweighted'] = 1.0
@@ -421,76 +305,6 @@ def load_data(inputPath,variables,criteria,LessSamples):
         if len(data) == 0 : continue
 
     return data
-
-def load_trained_model(model_path):
-    print('<load_trained_model> weights_path: ', model_path)
-    model = load_model(model_path, compile=False)
-    return model
-
-def baseline_model(num_variables,learn_rate=0.001):
-    model = Sequential()
-    model.add(Dense(64,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
-    #model.add(Dense(64,activation='relu'))
-    model.add(Dense(32,activation='relu'))
-    model.add(Dense(16,activation='relu'))
-    model.add(Dense(8,activation='relu'))
-    model.add(Dense(4,activation='relu'))
-    model.add(Dense(1, activation='sigmoid'))
-    #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
-    optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
-    return model
-
-def gscv_model(learn_rate=0.001):
-    model = Sequential()
-    model.add(Dense(32,input_dim=29,kernel_initializer='glorot_normal',activation='relu'))
-    model.add(Dense(16,activation='relu'))
-    model.add(Dense(8,activation='relu'))
-    model.add(Dense(4,activation='relu'))
-    model.add(Dense(1, activation='sigmoid'))
-    #model.compile(loss='binary_crossentropy',optimizer=Nadam(lr=learn_rate),metrics=['acc'])
-    optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
-    return model
-
-def new_model(num_variables,learn_rate=0.001):
-    model = Sequential()
-    model.add(Dense(32, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(16,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(8,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(4,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(1, activation="sigmoid")) 
-    optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
-    return model
-
-def MultiClassifier_Model(num_variables, nClasses, learn_rate=0.001):
-    model = Sequential()
-    model.add(Dense(32, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(16,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(8,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(4,kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(Activation('relu'))
-    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification 
-    optimizer=Nadam(lr=learn_rate)
-    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy 
-    
-    return model
 
 def check_dir(dir, Website):
     if not os.path.exists(dir):
@@ -518,9 +332,8 @@ def main():
 
     # Create instance of the input files directory
     inputs_file_path = args.inputs_file_path
-    # inputs_file_path = '/eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/'
-
     hyp_param_scan=args.hyp_param_scan
+
     # Set model hyper-parameters
     weights='BalanceYields'# 'BalanceYields' or 'BalanceNonWeighted'
     optimizer = 'Nadam'
@@ -533,10 +346,10 @@ def main():
     if weights == 'BalanceYields':
         learn_rate = 0.0001
         epochs = args.epochs 
-        batch_size=100
+        # batch_size=100
+        batch_size=500
 
     # Create instance of output directory where all results are saved.
-    # ol = '/eos/user/a/atishelm/www/HHWWgg/DNN/'
     output_directory = '%sHHWWyyDNN_%s_%s/' % (args.Website,suffix,weights) 
     check_dir(output_directory, args.Website)
     hyperparam_file = os.path.join(output_directory,'additional_model_hyper_params.txt')
@@ -550,7 +363,10 @@ def main():
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
     input_var_jsonFile = open('input_variables.json','r')
-    selection_criteria = '( 1.>0. )'
+
+
+    selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
+    # selection_criteria = '( 1.>0. )'
 
     # Load Variables from .json
     variable_list = json.load(input_var_jsonFile,encoding="utf-8").items()
@@ -561,6 +377,7 @@ def main():
         column_headers.append(key)
     column_headers.append('weight')
     column_headers.append('weight_NLO_SM')
+    column_headers.append('kinWeight')
     column_headers.append('unweighted')
     column_headers.append('target')
     column_headers.append('key')
@@ -611,7 +428,6 @@ def main():
     print('<train-DNN> Training dataset shape: ', traindataset.shape)
     print('<train-DNN> Validation dataset shape: ', valdataset.shape)
 
-
     # Event weights
     weights_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'weight']
     weights_for_HH_NLO = traindataset.loc[traindataset['process_ID']=='HH', 'weight_NLO_SM']
@@ -623,18 +439,38 @@ def main():
     weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
     weights_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'weight']
     weights_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'weight']
+
+    ##-- kinWeight 
+    procs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
+    for proc in procs:
+        exec("kinWeights_for_%s = traindataset.loc[traindataset['process_ID'] == '%s', 'kinWeight']"%(proc, proc))
    
+    ##-- Computed Weighted sums 
     HHsum_weighted= sum(weights_for_HH*weights_for_HH_NLO)
     Hggsum_weighted= sum(weights_for_Hgg)
-    DiPhotonsum_weighted= sum(weights_for_DiPhoton) 
-    GJetsum_weighted= sum(weights_for_GJet)
-    QCDsum_weighted= sum(weights_for_QCD) 
-    DYsum_weighted= sum(weights_for_DY)
-    TTGsJetssum_weighted= sum(weights_for_TTGsJets)
-    WGsJetssum_weighted= sum(weights_for_WGsJets)
-    WWsum_weighted= sum(weights_for_WW) 
-    bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
- 
+
+    BkgProcs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
+    for BkgProc in BkgProcs:
+        exec("%ssum_weighted = sum(weights_for_%s * kinWeights_for_%s)"%(BkgProc, BkgProc, BkgProc))
+        # DiPhotonsum_weighted= sum(weights_for_DiPhoton) 
+        # GJetsum_weighted= sum(weights_for_GJet)
+        # QCDsum_weighted= sum(weights_for_QCD) 
+        # DYsum_weighted= sum(weights_for_DY)
+        # TTGsJetssum_weighted= sum(weights_for_TTGsJets)
+        # WGsJetssum_weighted= sum(weights_for_WGsJets)
+        # WWsum_weighted= sum(weights_for_WW) 
+
+    # DiPhotonsum_weighted= sum(weights_for_DiPhoton) 
+    # GJetsum_weighted= sum(weights_for_GJet)
+    # QCDsum_weighted= sum(weights_for_QCD) 
+    # DYsum_weighted= sum(weights_for_DY)
+    # TTGsJetssum_weighted= sum(weights_for_TTGsJets)
+    # WGsJetssum_weighted= sum(weights_for_WGsJets)
+    # WWsum_weighted= sum(weights_for_WW)         
+
+    if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    else: bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    
     nevents_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'unweighted']
     nevents_for_Hgg = traindataset.loc[traindataset['process_ID']=='Hgg', 'unweighted']
     nevents_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'unweighted']
@@ -654,12 +490,13 @@ def main():
     TTGsJetssum_unweighted= sum(nevents_for_TTGsJets)
     WGsJetssum_unweighted= sum(nevents_for_WGsJets)
     WWsum_unweighted= sum(nevents_for_WW)
-    bckgsum_unweighted = Hggsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
-    #bckgsum_unweighted = DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
+    if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
+    else: bckgsum_unweighted = Hggsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
 
     #HHsum_weighted = 2*HHsum_weighted
     #HHsum_unweighted = 2*HHsum_unweighted
 
+    ##-- Define class weights 
     if weights=='BalanceYields':
         print('HHsum_weighted= ' , HHsum_weighted)
         print('Hggsum_weighted= ' , Hggsum_weighted)
@@ -672,7 +509,38 @@ def main():
         print('WWsum_weighted= ', WWsum_weighted)
         print('bckgsum_weighted= ', bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = HHsum_unweighted/HHsum_weighted
-        traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/bckgsum_weighted) 
+        if(args.MultiClass): 
+            traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/Hggsum_weighted) ##-- Scale all Hgg events to HH unweighted 
+            print('----[HH class]----')
+            print('HH unweighted:',int(HHsum_unweighted))
+            print('HH weighted:' , round(HHsum_weighted, 2))
+            print('HH Class Weight:',round(HHsum_unweighted/HHsum_weighted, 2))
+            print(' ')
+            print('----[H class]----')
+            print('Hgg unweighted:' , int(Hggsum_unweighted))
+            print('Hgg weighted:' , round(Hggsum_weighted, 2))
+            print('H Class Weight:',(round(HHsum_unweighted/Hggsum_weighted, 2)))
+            print(' ')
+            print('----[Bkg class]----')
+            print('DiPhoton unweighted:', int(DiPhotonsum_unweighted))
+            print('DiPhotonsum_weighted:', round(DiPhotonsum_weighted, 2))
+            print(' ')
+            print('GJet unweighted:', int(GJetsum_unweighted))
+            print('GJetsum_weighted:', round(GJetsum_weighted, 2))
+            print(' ')
+            print('TTGsJets unweighted:', int(TTGsJetssum_unweighted))
+            print('TTGsJetssum_weighted:', round(TTGsJetssum_weighted, 2))
+            print(' ')
+            print('WGsJets unweighted:', int(WGsJetssum_unweighted))
+            print('WGsJetssum_weighted:', round(WGsJetssum_weighted, 2))
+            print(' ')
+            print('Bkg Unweighted:', int(bckgsum_unweighted))             
+            print('Bkg Weighted:', round(bckgsum_weighted, 2)) 
+            print(' ')
+            print('Bkg Class Weight:',round((HHsum_unweighted/bckgsum_weighted), 2))            
+            
+        else: traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/bckgsum_weighted) 
+        
         traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (HHsum_unweighted/bckgsum_weighted) 
         traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
@@ -702,7 +570,6 @@ def main():
         traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
         traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
         
-
     # Remove column headers that aren't input variables
     training_columns = column_headers[:-7]
     print('<train-DNN> Training features: ', training_columns)
@@ -729,16 +596,17 @@ def main():
     # Event weights if wanted
     #train_weights = traindataset['weight'].values*traindataset['weight_NLO_SM'].values
     #test_weights = valdataset['weight'].values*valdataset['weight_NLO_SM'].values
-    train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)
-    test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)
-
-    # print("train_weights:",train_weights)
-    # print("test_weights:",test_weights)
+    # train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)
+    # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)
+    # train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
+    # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values) 
+    train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
+    test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(valdataset['kinWeight'].values)        
 
     # Weights applied during training.
     if weights=='BalanceYields':
         #trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']*traindataset.loc[:,'weight_NLO_SM']
-        trainingweights = traindataset.loc[:,'classweight'].abs()*traindataset.loc[:,'weight'].abs()*traindataset.loc[:,'weight_NLO_SM'].abs()
+        trainingweights = traindataset.loc[:,'classweight'].abs()*traindataset.loc[:,'weight'].abs()*traindataset.loc[:,'weight_NLO_SM'].abs()*traindataset.loc[:,'kinWeight'].abs()
     if weights=='BalanceNonWeighted':
         trainingweights = traindataset.loc[:,'classweight']
     trainingweights = np.array(trainingweights)
@@ -794,8 +662,8 @@ def main():
             early_stopping_monitor = EarlyStopping(patience=100, monitor='val_loss', min_delta=0.01, verbose=1)
 
             if(args.MultiClass): 
-                nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
-                # nClasses = 3 ##-- HH, H, Bkg (continuum) 
+                # nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
+                nClasses = 3 ##-- HH, H, Bkg (continuum) 
                 model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)  
             else: 
                 model = new_model(num_variables, learn_rate=learn_rate)
@@ -843,6 +711,13 @@ def main():
     model.save_weights(weights_output_name)
     model_json = model.to_json()
     model_json_name = os.path.join(output_directory,'model_serialised.json')
+
+    ##-- Convert model to pb 
+    CONVERT_COMMAND = "python convert_hdf5_2_pb.py --input %s/model.h5 --output %s/model.pb"%(output_directory, output_directory)
+    print("Converting model.h5 to model.pb...")
+    print(CONVERT_COMMAND)
+    os.system(CONVERT_COMMAND)
+
     with open(model_json_name,'w') as json_file:
         json_file.write(model_json)
     model.summary()
@@ -872,22 +747,6 @@ def main():
             print("Saving %s..."%(objToSave))
             executeLine = "pickle.dump( %s , open( '%s/%s.p', 'wb' ) )"%(objToSave, output_directory, objToSave)
             exec(executeLine)
-
-    # Make overfitting plots of output nodes
-    # Plotter.binary_overfitting(model, Y_train, Y_test, result_probs, result_probs_test, plots_dir, train_weights, test_weights)
-    # e = shap.DeepExplainer(model, X_train[:400, ])
-    # shap_values = e.shap_values(X_test[:400, ])
-    # Plotter.plot_dot(title="DeepExplainer_sigmoid_y0", x=X_test[:400, ], shap_values=shap_values, column_headers=column_headers)
-    # Plotter.plot_dot_bar(title="DeepExplainer_Bar_sigmoid_y0", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
-
-    #e = shap.GradientExplainer(model, X_train[:100, ])
-    #shap_values = e.shap_values(X_test[:100, ])
-    #Plotter.plot_dot(title="GradientExplainer_sigmoid_y0", x=X_test[:100, ], shap_values=shap_values, column_headers=column_headers)
-    #e = shap.KernelExplainer(model.predict, X_train[:100, ])
-    #shap_values = e.shap_values(X_test[:100, ])
-    #Plotter.plot_dot(title="KernelExplainer_sigmoid_y0", x=X_test[:100, ],shap_values=shap_values, column_headers=column_headers)
-    #Plotter.plot_dot_bar(title="KernelExplainer_Bar_sigmoid_y0", x=X_test[:100,], shap_values=shap_values, column_headers=column_headers)
-    #Plotter.plot_dot_bar_all(title="KernelExplainer_bar_All_Var_sigmoid_y0", x=X_test[:100,], shap_values=shap_values, column_headers=column_headers)
 
     if(args.MultiClass):
         Plotter.ROC_MultiClassifier(model, X_test, Y_test, X_train, Y_train)
