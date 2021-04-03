@@ -9,10 +9,19 @@
 ######################################################################################################################################################################
 # Example Commands: 
 #
-#### source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc8-opt/setup.sh 
 # source /cvmfs/sft.cern.ch/lcg/views/LCG_94/x86_64-centos7-gcc7-opt/setup.sh
+####-- Newer software source: source /cvmfs/sft.cern.ch/lcg/views/LCG_99/x86_64-centos7-gcc8-opt/setup.sh 
 # 
+##-- Testing
+# python train-DNN.py -t 1 -s DryRunCorrelation_lessSamples -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 3 --useKinWeight --VHToGGClassWeightFactor 2.0 --ttHJetToGGClassWeightFactor 2.0 --BkgClassWeightFactor 1.0 --LessSamples
+# python train-DNN.py -t 1 -s DryRunCorrelation -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 3 --useKinWeight --VHToGGClassWeightFactor 2.0 --ttHJetToGGClassWeightFactor 2.0 --BkgClassWeightFactor 1.0
+# python train-DNN.py -t 0 -s MultiClassDryRunForClassWeights -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 3 --useKinWeight --VHToGGClassWeightFactor 2.0 --ttHJetToGGClassWeightFactor 2.0 --BkgClassWeightFactor 1.0
+# python train-DNN.py -t 1 -s MultiClass_EvenSingleH_2Hgg_withKinWeight_HggClassScale_1_BkgClassScale_1_HHNormed -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 200 --useKinWeight --HggClassWeightFactor 1.0 --BkgClassWeightFactor 1.0
+# python train-DNN.py -t 1 -s MultiClass_EvenSingleH_2Hgg_withKinWeight_HggClassScale_4_BkgClassScale_1 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 200 --useKinWeight --HggClassWeightFactor 4.0 --BkgClassWeightFactor 1.0
+# python train-DNN.py -t 1 -s WithHggFactor2-3Epochs-3ClassMulticlass_EvenSingleH_2Hgg_withKinWeightCut10 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 3 --useKinWeight
+
 # ##-- Run Multiclassifier and save all outputs to website 
+# python train-DNN.py -t 1 -s 200Epochs-3ClassMulticlass_EvenSingleH_4Hgg_withKinWeightCut10 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 3 --kinWeight
 # python train-DNN.py -t 1 -s 5Epochs-3ClassMulticlass_EvenSingleH_Run2 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 5
 # python train-DNN.py -t 1 -s 200Epochs-3ClassMulticlass_EvenSingleH_Run2 -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput -e 200
 #
@@ -80,7 +89,7 @@ def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch
     #out = commands.getoutput(eos_cmd)
     return
 
-def load_data(inputPath,variables,criteria,LessSamples):
+def load_data(inputPath, variables, criteria, LessSamples, useKinWeight):
     # Load dataset to .csv format file
     my_cols_list=variables
     data = pd.DataFrame(columns=my_cols_list)
@@ -157,15 +166,15 @@ def load_data(inputPath,variables,criteria,LessSamples):
                         'VHToGG_M125_2016_HHWWggTag_0_MoreVars_even', 
                         'ttHJetToGG_M125_2016_HHWWggTag_0_MoreVars_even',
 
-                        # ##-- 2017 
-                        # # 'GluGluHToGG_2017_HHWWggTag_0_MoreVars_even',
-                        # # 'VBFHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        ##-- 2017 
+                        # 'GluGluHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        # 'VBFHToGG_2017_HHWWggTag_0_MoreVars_even',
                         'VHToGG_2017_HHWWggTag_0_MoreVars_even', 
                         'ttHJetToGG_2017_HHWWggTag_0_MoreVars_even',
 
-                        # ##-- 2018  
-                        # # 'GluGluHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
-                        # # 'VBFHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        ##-- 2018  
+                        # 'GluGluHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        # 'VBFHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
                         'VHToGG_M125_2018_HHWWggTag_0_MoreVars_even', 
                         'ttHJetToGG_2018_M125_HHWWggTag_0_MoreVars_even',                        
                         ] 
@@ -218,9 +227,9 @@ def load_data(inputPath,variables,criteria,LessSamples):
         #'W4JetsToLNu_HHWWggTag_0_MoreVars_kinWeight_noHgg',
 
         'WGGJets_HHWWggTag_0_MoreVars_kinWeight_noHgg',
-        'WGJJToLNuGJJ_EWK_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        # 'WGJJToLNuGJJ_EWK_HHWWggTag_0_MoreVars_kinWeight_noHgg',
+        'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars_kinWeight_noHgg',
 
-        # 'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars_kinWeight_noHgg',
         #'WWTo1L1Nu2Q_HHWWggTag_0_MoreVars_kinWeight_noHgg',
         #'WW_TuneCP5_HHWWggTag_0_MoreVars_kinWeight_noHgg',
             # 'GluGluHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg',
@@ -276,9 +285,32 @@ def load_data(inputPath,variables,criteria,LessSamples):
             for tname in treename:
                 # print("tname:",tname)
                 ch_0 = tfile.Get(tname)
+
+                ##-- Remove events with large weight * kinWeight values 
+                if(useKinWeight):
+                    # print("APPLYING fiducial selection fabs(weight * kinWeight) < 10 to background events")
+                    CutDict = {
+                        0 : "(1.)", ##-- HH 
+                        1 : "(1.)", ##-- H 
+                        2 : '( ( fabs(weight * kinWeight) < 10 ) )' ##-- Continuum Background, apply kinWeight fiducial cut to remove very large weight*kinWeight events 
+                    }
+
+                elif(not useKinWeight):
+                    # print("NOT APPLYING fiducial selection fabs(weight * kinWeight) < 10 to background events")
+                    CutDict = {
+                        0 : "(1.)", ##-- HH 
+                        1 : "(1.)", ##-- H 
+                        2 : '(1.)' ##-- Continuum Background 
+                    }
+
                 if ch_0 is not None :
                     criteria_tmp = criteria 
                     #if process_ID == "HH": criteria_tmp = criteria + " && (event%2!=0)"
+                    # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
+
+                    criteria_tmp = CutDict[target]
+                    print("Sample Event Selection:",criteria_tmp)
+                    
                     # Create dataframe for ttree
                     chunk_arr = tree2array(tree=ch_0, branches=my_cols_list[:-5], selection=criteria_tmp)
                     #print "chunk_arr:",chunk_arr
@@ -326,9 +358,18 @@ def main():
     parser.add_argument("--Website", type = str, default = "", help = "Output files to website path")
     parser.add_argument("--SaveOutput", action="store_true", help = "Save X and Y train and test arrays as pickle files")
     parser.add_argument("-e", "--epochs", type = int, default = 200, help = "Number of epochs to train")
+    parser.add_argument("--useKinWeight", action="store_true", help = "Use kinematic MC weights, derived to improve Data / MC agreement, in training")
+    parser.add_argument("--VHToGGClassWeightFactor", type = float, default = 1., help = "Factor to adjust Hgg class weights")
+    parser.add_argument("--ttHJetToGGClassWeightFactor", type = float, default = 1., help = "Factor to adjust Hgg class weights")
+    parser.add_argument("--BkgClassWeightFactor", type = float, default = 1., help = "Factor to adjust bkg class weights")
     args = parser.parse_args()
+
     do_model_fit = args.train_model
     suffix = args.suffix
+    useKinWeight = args.useKinWeight 
+    VHToGGClassWeightFactor = args.VHToGGClassWeightFactor
+    ttHJetToGGClassWeightFactor = args.ttHJetToGGClassWeightFactor
+    BkgClassWeightFactor = args.BkgClassWeightFactor
 
     # Create instance of the input files directory
     inputs_file_path = args.inputs_file_path
@@ -362,11 +403,15 @@ def main():
 
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
-    input_var_jsonFile = open('input_variables.json','r')
+    print("INPUT VARIABLES JSON INCLUDES CMS_hgg_mass ONLY FOR CHECKING CORRELATION")
+    print("SHOULD NOT TRAIN ON THIS VARIABLE")
+    # input_var_jsonFile = open('input_variables.json','r')
+
+    input_var_jsonFile = open('input_variables_withHggMass.json','r')
 
 
-    selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
-    # selection_criteria = '( 1.>0. )'
+    # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
+    selection_criteria = '( 1.>0. )'
 
     # Load Variables from .json
     variable_list = json.load(input_var_jsonFile,encoding="utf-8").items()
@@ -392,7 +437,7 @@ def main():
         print('<train-DNN> Loading data .csv from: %s . . . . ' % (outputdataframe_name))
     else:
         print('<train-DNN> Creating new data .csv @: %s . . . . ' % (inputs_file_path))
-        data = load_data(inputs_file_path,column_headers,selection_criteria,args.LessSamples)
+        data = load_data(inputs_file_path,column_headers,selection_criteria,args.LessSamples, useKinWeight)
         # Change sentinal value to speed up training.
         data = data.mask(data<-25., -9.)
         data = data.mask(data==np.inf, -9.)
@@ -422,7 +467,7 @@ def main():
     Plotter = plotter(args.Website)
     
     # Create statistically independant training/testing data
-    traindataset, valdataset = train_test_split(data, test_size=0.1)
+    traindataset, valdataset = train_test_split(data, test_size=validation_split)
     valdataset.to_csv((output_directory+'valid_dataset.csv'), index=False)
 
     print('<train-DNN> Training dataset shape: ', traindataset.shape)
@@ -431,7 +476,8 @@ def main():
     # Event weights
     weights_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'weight']
     weights_for_HH_NLO = traindataset.loc[traindataset['process_ID']=='HH', 'weight_NLO_SM']
-    weights_for_Hgg = traindataset.loc[traindataset['process_ID']=='Hgg', 'weight']
+    weights_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'weight']
+    weights_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'weight']
     weights_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'weight']
     weights_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'weight']
     weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
@@ -439,40 +485,55 @@ def main():
     weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
     weights_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'weight']
     weights_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'weight']
-
-    ##-- kinWeight 
-    procs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
-    for proc in procs:
-        exec("kinWeights_for_%s = traindataset.loc[traindataset['process_ID'] == '%s', 'kinWeight']"%(proc, proc))
-   
-    ##-- Computed Weighted sums 
-    HHsum_weighted= sum(weights_for_HH*weights_for_HH_NLO)
-    Hggsum_weighted= sum(weights_for_Hgg)
-
+    
+    ##-- Compute weight sums 
     BkgProcs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
-    for BkgProc in BkgProcs:
-        exec("%ssum_weighted = sum(weights_for_%s * kinWeights_for_%s)"%(BkgProc, BkgProc, BkgProc))
-        # DiPhotonsum_weighted= sum(weights_for_DiPhoton) 
-        # GJetsum_weighted= sum(weights_for_GJet)
-        # QCDsum_weighted= sum(weights_for_QCD) 
-        # DYsum_weighted= sum(weights_for_DY)
-        # TTGsJetssum_weighted= sum(weights_for_TTGsJets)
-        # WGsJetssum_weighted= sum(weights_for_WGsJets)
-        # WWsum_weighted= sum(weights_for_WW) 
 
-    # DiPhotonsum_weighted= sum(weights_for_DiPhoton) 
-    # GJetsum_weighted= sum(weights_for_GJet)
-    # QCDsum_weighted= sum(weights_for_QCD) 
-    # DYsum_weighted= sum(weights_for_DY)
-    # TTGsJetssum_weighted= sum(weights_for_TTGsJets)
-    # WGsJetssum_weighted= sum(weights_for_WGsJets)
-    # WWsum_weighted= sum(weights_for_WW)         
+    ##-- Computed Weighted sums for HH and Hgg, no kinweights 
+    # XS_HH = 31.049
+    # BR_HH_WWgg = 0.000970198
+    # BR_WWgg_qqlnu = 0.441 ##-- Semileptonic WW decay 
 
+    HHsum_weighted = sum(weights_for_HH*weights_for_HH_NLO)
+
+    ##-- To apply HH XS and BR normalization to HHsum weighted 
+    # HHsum_weighted = HHsum_weighted * XS_HH * BR_HH_WWgg * BR_WWgg_qqlnu 
+    VHToGGsum_weighted = sum(weights_for_VHToGG)
+    ttHJetToGGsum_weighted = sum(weights_for_ttHJetToGG)
+
+    ##-- If using kinematic weights, extract values from files and multiply with MC weights ('weight' branch) per event for MC weighted sums 
+    if(useKinWeight):
+        print("Using kinematic weights in MC weighted sum computation")
+        for BkgProc in BkgProcs:
+            exec("kinWeights_for_%s = traindataset.loc[traindataset['process_ID'] == '%s', 'kinWeight']"%(BkgProc, BkgProc))
+            exec("%ssum_weighted = sum(weights_for_%s * kinWeights_for_%s)"%(BkgProc, BkgProc, BkgProc)) ##-- weighted sum computed from sum of products of MC weight and kinweight
+
+    ##-- If not using kinematic weights, compute weighted event sum only from MC weights 
+    elif(not useKinWeight):
+        print("NOT using kinematic weights in MC weighted sum computation")
+        for BkgProc in BkgProcs:
+            exec("%ssum_weighted = sum(weights_for_%s)"%(BkgProc, BkgProc)) ##-- weighted sum only computed from MC weight ('weight' branch) 
+
+
+    ##-- Already know we want to focus more on VH than ttH 
+    # VHToGGsum_weighted = (VHToGGsum_weighted * VHToGGClassWeightFactor) / 2.
+    VHToGGsum_weighted = (VHToGGsum_weighted * VHToGGClassWeightFactor)
+    ttHJetToGGsum_weighted = ttHJetToGGsum_weighted * ttHJetToGGClassWeightFactor
+
+    # bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
+
+    Hggsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted
+
+    ##-- If running a multiclass neural network, do not include Hgg event sum in background sum, as this constitutes a different class 
     if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
-    else: bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    # else: bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    else: bckgsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    
+    bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
     
     nevents_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'unweighted']
-    nevents_for_Hgg = traindataset.loc[traindataset['process_ID']=='Hgg', 'unweighted']
+    nevents_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'unweighted']
+    nevents_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'unweighted']
     nevents_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'unweighted']
     nevents_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'unweighted']
     nevents_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'unweighted']
@@ -482,7 +543,8 @@ def main():
     nevents_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'unweighted']
     
     HHsum_unweighted= sum(nevents_for_HH)
-    Hggsum_unweighted= sum(nevents_for_Hgg)
+    VHToGGsum_unweighted= sum(nevents_for_VHToGG)
+    ttHJetToGGsum_unweighted= sum(nevents_for_ttHJetToGG)
     DiPhotonsum_unweighted= sum(nevents_for_DiPhoton)
     GJetsum_unweighted= sum(nevents_for_GJet)
     QCDsum_unweighted= sum(nevents_for_QCD)
@@ -491,15 +553,27 @@ def main():
     WGsJetssum_unweighted= sum(nevents_for_WGsJets)
     WWsum_unweighted= sum(nevents_for_WW)
     if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
-    else: bckgsum_unweighted = Hggsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
+    else: bckgsum_unweighted = VHToGGsum_unweighted + ttHJetToGGsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
 
-    #HHsum_weighted = 2*HHsum_weighted
-    #HHsum_unweighted = 2*HHsum_unweighted
+    ##-- Adjust class weights if desired 
+    if(ttHJetToGGClassWeightFactor != 1.):
+        print("Adjusting Hgg class weights: weighted / unweighted sums scaled by: ", ttHJetToGGClassWeightFactor)
+    if(VHToGGClassWeightFactor != 1.):
+        print("Adjusting Hgg class weights: weighted / unweighted sums scaled by: ", VHToGGClassWeightFactor)        
+    if(BkgClassWeightFactor != 1.):
+        print("Adjusting class weights: weighted / unweighted sums scaled by: ", BkgClassWeightFactor)        
+
+    ##-- Already know we want to focus more on VH than ttH 
+    VHToGGsum_unweighted = VHToGGsum_unweighted * VHToGGClassWeightFactor
+    ttHJetToGGsum_unweighted = ttHJetToGGsum_unweighted * ttHJetToGGClassWeightFactor    
+    bckgsum_unweighted = bckgsum_unweighted * BkgClassWeightFactor
+
+    Hggsum_unweighted = VHToGGsum_unweighted + ttHJetToGGsum_unweighted
 
     ##-- Define class weights 
     if weights=='BalanceYields':
         print('HHsum_weighted= ' , HHsum_weighted)
-        print('Hggsum_weighted= ' , Hggsum_weighted)
+        # print('Hggsum_weighted= ' , Hggsum_weighted)
         print('DiPhotonsum_weighted= ', DiPhotonsum_weighted)
         print('GJetsum_weighted= ', GJetsum_weighted)
         print('QCDsum_weighted= ', QCDsum_weighted)
@@ -508,46 +582,87 @@ def main():
         print('WGsJetssum_weighted= ', WGsJetssum_weighted)
         print('WWsum_weighted= ', WWsum_weighted)
         print('bckgsum_weighted= ', bckgsum_weighted)
-        traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = HHsum_unweighted/HHsum_weighted
+
+        ##-- Choose class weight scale target
+        classweight_Target = HHsum_unweighted
+        traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = classweight_Target/HHsum_weighted
+        
         if(args.MultiClass): 
-            traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/Hggsum_weighted) ##-- Scale all Hgg events to HH unweighted 
+
+            ##-- Output unweighted, weighted yields and class weights to tex style table 
+
+            ##-- TeX file table 
+            fileName = "DNN_YieldsAndWeights.tex"
+            file = open(fileName,"w")
+            file.write("\\begin{table}[H]\n")
+            file.write("\t\\begin{center}\n")
+            file.write("\t\t\\begin{tabular}{c|c|c|c}\n")
+            file.write("\t\t\tClass & Unweighted Yield & Weighted Yield & Class Weight \\\ \\hline \n")
+
+            ##-- Scale ttHJet and VH separately based on their weighted yields 
+            # traindataset.loc[traindataset['process_ID']=='VHToGG', ['classweight']] = (classweight_Target/VHToGGsum_weighted) ##-- Scale all Hgg events to HH unweighted 
+            # traindataset.loc[traindataset['process_ID']=='ttHJetToGG', ['classweight']] = (classweight_Target/ttHJetToGGsum_weighted) ##-- Scale all Hgg events to HH unweighted 
+
+            ##-- Scale ttHJet and VH in the same way - based on weighted sum of Hgg yields
+            traindataset.loc[traindataset['process_ID']=='VHToGG', ['classweight']] = (classweight_Target/Hggsum_weighted) ##-- Scale all Hgg events to HH unweighted 
+            traindataset.loc[traindataset['process_ID']=='ttHJetToGG', ['classweight']] = (classweight_Target/Hggsum_weighted) ##-- Scale all Hgg events to HH unweighted             
+
+            ##-- Printout class weights 
             print('----[HH class]----')
             print('HH unweighted:',int(HHsum_unweighted))
-            print('HH weighted:' , round(HHsum_weighted, 2))
-            print('HH Class Weight:',round(HHsum_unweighted/HHsum_weighted, 2))
+            print('HH weighted:' , round(HHsum_weighted, 6))
+            print('HH Class Weight:',round(classweight_Target/HHsum_weighted, 6))
             print(' ')
             print('----[H class]----')
+            # print('VHToGG unweighted:' , int(VHToGGsum_unweighted))
+            # print('VHToGG weighted:' , round(VHToGGsum_weighted, 6))
+            # print('VHToGG Class Weight:',(round(classweight_Target/VHToGGsum_weighted, 6)))
+            # print('ttHJetToGG unweighted:' , int(ttHJetToGGsum_unweighted))
+            # print('ttHJetToGG weighted:' , round(ttHJetToGGsum_weighted, 6))
+            # print('ttHJetToGG Class Weight:',(round(classweight_Target/ttHJetToGGsum_weighted, 6)))  
             print('Hgg unweighted:' , int(Hggsum_unweighted))
-            print('Hgg weighted:' , round(Hggsum_weighted, 2))
-            print('H Class Weight:',(round(HHsum_unweighted/Hggsum_weighted, 2)))
+            print('Hgg weighted:' , round(Hggsum_weighted, 6))
+            print('Hgg Class Weight:',(round(classweight_Target/Hggsum_weighted, 6)))                                    
             print(' ')
             print('----[Bkg class]----')
             print('DiPhoton unweighted:', int(DiPhotonsum_unweighted))
-            print('DiPhotonsum_weighted:', round(DiPhotonsum_weighted, 2))
+            print('DiPhotonsum_weighted:', round(DiPhotonsum_weighted, 6))
             print(' ')
             print('GJet unweighted:', int(GJetsum_unweighted))
-            print('GJetsum_weighted:', round(GJetsum_weighted, 2))
+            print('GJetsum_weighted:', round(GJetsum_weighted, 6))
             print(' ')
             print('TTGsJets unweighted:', int(TTGsJetssum_unweighted))
-            print('TTGsJetssum_weighted:', round(TTGsJetssum_weighted, 2))
+            print('TTGsJetssum_weighted:', round(TTGsJetssum_weighted, 6))
             print(' ')
             print('WGsJets unweighted:', int(WGsJetssum_unweighted))
-            print('WGsJetssum_weighted:', round(WGsJetssum_weighted, 2))
+            print('WGsJetssum_weighted:', round(WGsJetssum_weighted, 6))
             print(' ')
             print('Bkg Unweighted:', int(bckgsum_unweighted))             
-            print('Bkg Weighted:', round(bckgsum_weighted, 2)) 
+            print('Bkg Weighted:', round(bckgsum_weighted, 6)) 
             print(' ')
-            print('Bkg Class Weight:',round((HHsum_unweighted/bckgsum_weighted), 2))            
+            print('Bkg Class Weight:',round((classweight_Target/bckgsum_weighted), 6))            
+
+            file.write("\t\t\t HH & %s & %s & %s \\\ \n"%(int(HHsum_unweighted), round(HHsum_weighted, 4), round(classweight_Target/HHsum_weighted, 4)))
+            file.write("\t\t\t H & %s & %s & %s \\\ \n"%(int(Hggsum_unweighted), round(Hggsum_weighted, 4), round(classweight_Target/Hggsum_weighted, 4)))
+            file.write("\t\t\t Continuum Background & %s & %s & %s \\\ \n"%(int(bckgsum_unweighted), round(bckgsum_weighted, 4), round(classweight_Target/bckgsum_weighted, 4)))
+
+            file.write("\t\t\end{tabular}\n")
+            file.write("\t\caption{Unweighted and weighted yields, and class weights applied in the Semi-Leptonic DNN training}\n")
+            file.write("\t\\end{center}\n")
+            file.write("\end{table}\n")  
+
+            file.close()            
+
             
-        else: traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/bckgsum_weighted) 
+        else: traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_weighted) 
         
-        traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (HHsum_unweighted/bckgsum_weighted) 
-        traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
-        traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
-        traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
-        traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
-        traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
-        traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_weighted) 
+        traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (classweight_Target/bckgsum_weighted)
         
     if weights=='BalanceNonWeighted':
         print('HHsum_unweighted= ' , HHsum_unweighted)
@@ -561,17 +676,30 @@ def main():
         print('WWsum_unweighted= ', WWsum_unweighted)
         print('bckgsum_unweighted= ', bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = 1.
-        traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted)  
-        traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
-        traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
-        traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
-        traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
-        traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
-        traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
-        traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_unweighted)  
+        traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
+        traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (classweight_Target/bckgsum_unweighted) 
         
     # Remove column headers that aren't input variables
-    training_columns = column_headers[:-7]
+    nonTrainingVariables = ['weight', 'weight_NLO_SM', 'kinWeight', 'unweighted', 'target', 'key', 'classweight', 'process_ID']
+
+    # column_headers.append('weight')
+    # column_headers.append('weight_NLO_SM')
+    # column_headers.append('kinWeight')
+    # column_headers.append('unweighted')
+    # column_headers.append('target')
+    # column_headers.append('key')
+    # column_headers.append('classweight')
+    # column_headers.append('process_ID')    
+
+    training_columns = [h for h in column_headers if h not in nonTrainingVariables]
+
+    # training_columns = column_headers[:-7]
     print('<train-DNN> Training features: ', training_columns)
 
     column_order_txt = '%s/column_order.txt' %(output_directory)
@@ -600,20 +728,28 @@ def main():
     # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)
     # train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
     # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values) 
-    train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
-    test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(valdataset['kinWeight'].values)        
+
+    if(useKinWeight):
+        print("INCLUDING kinematic weights in training and test weights")
+        train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
+        test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(valdataset['kinWeight'].values)        
 
     # Weights applied during training.
     if weights=='BalanceYields':
-        #trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']*traindataset.loc[:,'weight_NLO_SM']
-        trainingweights = traindataset.loc[:,'classweight'].abs()*traindataset.loc[:,'weight'].abs()*traindataset.loc[:,'weight_NLO_SM'].abs()*traindataset.loc[:,'kinWeight'].abs()
+        if(useKinWeight):
+            print("INCLUDING kinWeight in training weights")
+            trainingweights = traindataset.loc[:,'classweight'].abs()*traindataset.loc[:,'weight'].abs()*traindataset.loc[:,'weight_NLO_SM'].abs()*traindataset.loc[:,'kinWeight'].abs()
+        elif(not useKinWeight):
+            print("NOT INCLUDING kinWeight in training weights")
+            trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']*traindataset.loc[:,'weight_NLO_SM']
+
     if weights=='BalanceNonWeighted':
         trainingweights = traindataset.loc[:,'classweight']
     trainingweights = np.array(trainingweights)
 
     ## Input Variable Correlation plot
     correlation_plot_file_name = 'correlation_plot'
-    Plotter.correlation_matrix(train_df)
+    Plotter.correlation_matrix(train_df, args.MultiClass)
     Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name+'.png')
     Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name+'.pdf')
 

@@ -60,26 +60,113 @@ class plotter(object):
         plt.tight_layout()
         return
 
-    def correlation_matrix(self, data, **kwds):
+    def correlation_matrix(self, data, withHmass, **kwds):
 
-        #iloc[<row selection>,<column selection>]
-        self.data = data.iloc[:, :-4]
-        self.labels = self.data.corr(**kwds).columns.values
-        self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(20,20))
-        #self.ax1.plot(x1,y1)
-        #self.fig.tick_params(fontsize=15)
-        opts = {"annot" : True, "ax" : self.ax1, "vmin" : 0, "vmax" : 1*100, "annot_kws" : {"size":8}, "cmap" : plt.get_cmap("Blues",20), 'fmt' : '0.2f',}
-        self.ax1.set_title("Correlations")
-        sns.heatmap(self.data.corr(method='spearman')*100, **opts)
-        for ax in (self.ax1,):
-            # Shift tick location to bin centre
-            ax.set_xticks(np.arange(len(self.labels))+0.5, minor=False)
-            ax.set_yticks(np.arange(len(self.labels))+0.5, minor=False)
-            ax.set_xticklabels(self.labels, minor=False, ha='right', rotation=45)
-            #ax.set_yticklabels(np.flipud(self.labels), minor=False, rotation=45)
-            ax.set_yticklabels(self.labels, minor=False, rotation=45)
+        if(withHmass):
+            print("Producing correlation matrix including CMS_hgg_mass")
+            #iloc[<row selection>,<column selection>]
+            
+            self.data = data.iloc[:, :-8]
 
-        plt.tight_layout()
+            # CMS_hgg_mass_row = data.iloc[:, -10]
+            # self.data.drop(["CMS_hgg_mass"])
+            
+            self.labels = self.data.corr(**kwds).columns.values
+            self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(20,20))
+            # self.fig, axarr = plt.subplots(ncols=1, nrows=2, figsize=(20,20), gridspec_kw = {
+            #     'hspace' : 0.1,
+            #     'height_ratios' : (0.8, 0.1)
+            # })  
+
+            # self.ax1 = axarr[0]
+            # ax2 = axarr[1]
+
+            labelReplaceDict = {
+                'goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Subleading_Jet_bScore",
+                'goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Leading_Jet_bScore",
+            }
+
+            # print("self.data:",self.data)
+            # print("labels before:",self.labels)
+
+            for il, label in enumerate(self.labels):
+                if label in labelReplaceDict.keys():
+                    self.labels[il] = labelReplaceDict[label]
+
+            # print("labels after:",self.labels)
+            # print("EXITING")
+            # exit(1)
+
+            # ##-- Assuming the last two labels are "CMS_hgg_mass", "Leading_Jet_bScore"
+            # self.labels[-2], self.labels[-1] = self.labels[-1], self.labels[-2]
+            # self.data = self.data.reindex(columns = self.labels)
+
+            #self.ax1.plot(x1,y1)
+            #self.fig.tick_params(fontsize=15)
+            opts = {"annot" : True, "vmin" : 0, "vmax" : 1*100, "annot_kws" : {"size":8}, "cmap" : plt.get_cmap("Blues",20), 'fmt' : '0.2f',}
+            Less_opts = {"annot" : True, "vmin" : 0, "vmax" : 1*100, "annot_kws" : {"size":8}, 'fmt' : '0.2f',}
+            self.ax1.set_title("Input Feature Correlations", fontsize = 40)
+
+            matrix = self.data.corr(method='spearman')
+            
+            print("matrix before :",matrix)
+
+            matrix_cp = matrix.copy()
+
+            # matrix.drop("CMS_hgg_mass", inplace=True, axis=1) ##-- remove column 
+            # matrix.drop("CMS_hgg_mass", inplace=True, axis=0) ##-- remove row 
+            # self.labels = np.delete(self.labels, -2) ##--Remove CMS_hgg_mass from labels 
+
+            print("matrix after :",matrix)
+            mask = np.triu(matrix)
+            LowerMatrix = np.tril(matrix)
+
+            CMS_hgg_mass_row = matrix_cp.iloc[-2, :] ##-- second to last row?
+            CMS_hgg_mass_row.columns = self.labels
+            # CMS_hgg_mass_row_corr = CMS_hgg_mass_row.corr(method='spearman')
+
+            # print("CMS_hgg_mass_row:",CMS_hgg_mass_row)
+            # print("LowerMatrix:",LowerMatrix)
+            
+            sns.heatmap(LowerMatrix*100, mask = mask, ax = self.ax1, **opts)
+            # sns.heatmap(CMS_hgg_mass_row*100, ax = ax2)
+
+            # sns.heatmap(self.data.corr(method='spearman')*100, **opts)
+            for ax in (self.ax1,):
+                # Shift tick location to bin centre
+                ax.set_xticks(np.arange(len(self.labels))+0.5, minor=False)
+                ax.set_yticks(np.arange(len(self.labels))+0.5, minor=False)
+                ax.set_xticklabels(self.labels, minor=False, ha='right', rotation=45, fontsize = 12)
+                #ax.set_yticklabels(np.flipud(self.labels), minor=False, rotation=45)
+                ax.set_yticklabels(self.labels, minor=False, rotation=45, fontsize = 12)
+
+            # # Shift tick location to bin centre
+            # ax2.set_xticks(np.arange(len(self.labels))+0.5, minor=False)
+            # ax2.set_yticks(np.arange(1) + 0.5, minor=False)
+            # ax2.set_xticklabels(self.labels, minor=False, ha='right', rotation=45, fontsize = 12)
+            # #ax.set_yticklabels(np.flipud(self.labels), minor=False, rotation=45)
+            # ax2.set_yticklabels(["CMS_hgg_mass"], minor=False, rotation=45, fontsize = 12)                
+
+            plt.tight_layout()            
+        else: 
+            #iloc[<row selection>,<column selection>]
+            self.data = data.iloc[:, :-4]
+            self.labels = self.data.corr(**kwds).columns.values
+            self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(20,20))
+            #self.ax1.plot(x1,y1)
+            #self.fig.tick_params(fontsize=15)
+            opts = {"annot" : True, "ax" : self.ax1, "vmin" : 0, "vmax" : 1*100, "annot_kws" : {"size":8}, "cmap" : plt.get_cmap("Blues",20), 'fmt' : '0.2f',}
+            self.ax1.set_title("Correlations")
+            sns.heatmap(self.data.corr(method='spearman')*100, **opts)
+            for ax in (self.ax1,):
+                # Shift tick location to bin centre
+                ax.set_xticks(np.arange(len(self.labels))+0.5, minor=False)
+                ax.set_yticks(np.arange(len(self.labels))+0.5, minor=False)
+                ax.set_xticklabels(self.labels, minor=False, ha='right', rotation=45)
+                #ax.set_yticklabels(np.flipud(self.labels), minor=False, rotation=45)
+                ax.set_yticklabels(self.labels, minor=False, rotation=45)
+
+            plt.tight_layout()
 
         return
 
