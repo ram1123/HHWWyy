@@ -65,13 +65,11 @@ plot_model(model, to_file=model_schematic_name, show_shapes=True, show_layer_nam
 Plotter = plotter(args.Website)
 
 ## Input Variable Correlation plot
+withHiggsMass = 0 ##-- Plot correlation matrix expecting CMS_hgg_mass (diphoton mass - with purpose of checking correlation between input variables and signal region variable)
 correlation_plot_file_name = 'correlation_plot'
-Plotter.correlation_matrix(train_df, args.MultiClass)
+Plotter.correlation_matrix(train_df, withHiggsMass)
 Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name+'.png')
 Plotter.save_plots(dir=plots_dir, filename=correlation_plot_file_name+'.pdf')
-
-
-
 
 # Make plot of loss function evolution
 Plotter.plot_training_progress_acc(histories, labels)
@@ -79,24 +77,22 @@ acc_progress_filename = 'DNN_acc_wrt_epoch'
 Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.png')
 Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.pdf') 
 
+from_log = 1 ##-- obtaining history information from log file 
+Plotter.history_plot(history, from_log, label='loss')
+Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
+Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')  
 
+Plotter.history_plot(history, from_log, label='acc')
+Plotter.save_plots(dir=plots_dir, filename='history_acc.png')
+Plotter.save_plots(dir=plots_dir, filename='history_acc.pdf')  
 
-# from_log = 1 ##-- obtaining history information from log file 
-# Plotter.history_plot(history, from_log, label='loss')
-# Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
-# Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')  
+# Initialise output directory.
+Plotter.plots_directory = plots_dir
+Plotter.output_directory = output_directory
 
-# Plotter.history_plot(history, from_log, label='acc')
-# Plotter.save_plots(dir=plots_dir, filename='history_acc.png')
-# Plotter.save_plots(dir=plots_dir, filename='history_acc.pdf')  
-
-# # Initialise output directory.
-# Plotter.plots_directory = plots_dir
-# Plotter.output_directory = output_directory
-
-# if(args.MultiClass):
-#     Plotter.ROC_MultiClassifier(model, X_test, Y_test, X_train, Y_train)
-# else: 
-#     Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
-#     Plotter.save_plots(dir=plots_dir, filename='ROC.png')
-#     Plotter.save_plots(dir=plots_dir, filename='ROC.pdf')
+if(args.MultiClass):
+    Plotter.ROC_MultiClassifier(model, X_test, Y_test, X_train, Y_train)
+else: 
+    Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
+    Plotter.save_plots(dir=plots_dir, filename='ROC.png')
+    Plotter.save_plots(dir=plots_dir, filename='ROC.pdf')

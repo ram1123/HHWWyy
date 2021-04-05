@@ -403,11 +403,11 @@ def main():
 
     # Create plots subdirectory
     plots_dir = os.path.join(output_directory,'plots/')
-    print("INPUT VARIABLES JSON INCLUDES CMS_hgg_mass ONLY FOR CHECKING CORRELATION")
-    print("SHOULD NOT TRAIN ON THIS VARIABLE")
-    # input_var_jsonFile = open('input_variables.json','r')
+    # print("INPUT VARIABLES JSON INCLUDES CMS_hgg_mass ONLY FOR CHECKING CORRELATION")
+    # print("SHOULD NOT TRAIN ON THIS VARIABLE")
+    input_var_jsonFile = open('input_variables.json','r')
 
-    input_var_jsonFile = open('input_variables_withHggMass.json','r')
+    # input_var_jsonFile = open('input_variables_withHggMass.json','r')
 
 
     # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
