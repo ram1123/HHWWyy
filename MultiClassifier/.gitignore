@@ -1,3 +1,6 @@
 plotting/__init__.pyc
 plotting/plotter.pyc
 *.tex
+__pycache__/
+slurm_submit*.sh
+HHWWyyDNN_*/

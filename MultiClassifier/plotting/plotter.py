@@ -24,7 +24,7 @@ class plotter(object):
         self.yscores_train_non_categorised = [[0 for x in range(w)] for y in range(h)]
         self.yscores_test_non_categorised = [[0 for x in range(w)] for y in range(h)]
         self.plots_directory = ''
-        self.Website = Website 
+        self.Website = Website
         pass
 
     def save_plots(self, dir='plots/', filename=''):
@@ -65,18 +65,18 @@ class plotter(object):
         if(withHmass):
             print("Producing correlation matrix including CMS_hgg_mass")
             #iloc[<row selection>,<column selection>]
-            
+
             self.data = data.iloc[:, :-8]
 
             # CMS_hgg_mass_row = data.iloc[:, -10]
             # self.data.drop(["CMS_hgg_mass"])
-            
+
             self.labels = self.data.corr(**kwds).columns.values
             self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(20,20))
             # self.fig, axarr = plt.subplots(ncols=1, nrows=2, figsize=(20,20), gridspec_kw = {
             #     'hspace' : 0.1,
             #     'height_ratios' : (0.8, 0.1)
-            # })  
+            # })
 
             # self.ax1 = axarr[0]
             # ax2 = axarr[1]
@@ -108,14 +108,14 @@ class plotter(object):
             self.ax1.set_title("Input Feature Correlations", fontsize = 40)
 
             matrix = self.data.corr(method='spearman')
-            
+
             print("matrix before :",matrix)
 
             matrix_cp = matrix.copy()
 
-            # matrix.drop("CMS_hgg_mass", inplace=True, axis=1) ##-- remove column 
-            # matrix.drop("CMS_hgg_mass", inplace=True, axis=0) ##-- remove row 
-            # self.labels = np.delete(self.labels, -2) ##--Remove CMS_hgg_mass from labels 
+            # matrix.drop("CMS_hgg_mass", inplace=True, axis=1) ##-- remove column
+            # matrix.drop("CMS_hgg_mass", inplace=True, axis=0) ##-- remove row
+            # self.labels = np.delete(self.labels, -2) ##--Remove CMS_hgg_mass from labels
 
             print("matrix after :",matrix)
             mask = np.triu(matrix)
@@ -127,7 +127,7 @@ class plotter(object):
 
             # print("CMS_hgg_mass_row:",CMS_hgg_mass_row)
             # print("LowerMatrix:",LowerMatrix)
-            
+
             sns.heatmap(LowerMatrix*100, mask = mask, ax = self.ax1, **opts)
             # sns.heatmap(CMS_hgg_mass_row*100, ax = ax2)
 
@@ -145,10 +145,10 @@ class plotter(object):
             # ax2.set_yticks(np.arange(1) + 0.5, minor=False)
             # ax2.set_xticklabels(self.labels, minor=False, ha='right', rotation=45, fontsize = 12)
             # #ax.set_yticklabels(np.flipud(self.labels), minor=False, rotation=45)
-            # ax2.set_yticklabels(["CMS_hgg_mass"], minor=False, rotation=45, fontsize = 12)                
+            # ax2.set_yticklabels(["CMS_hgg_mass"], minor=False, rotation=45, fontsize = 12)
 
-            plt.tight_layout()            
-        else: 
+            plt.tight_layout()
+        else:
             #iloc[<row selection>,<column selection>]
             self.data = data.iloc[:, :-4]
             self.labels = self.data.corr(**kwds).columns.values
@@ -178,30 +178,30 @@ class plotter(object):
 
         y_pred_keras_train = model.predict(X_train).ravel()
         fpr_keras_train, tpr_keras_train, thresholds_keras_train = roc_curve(Y_train, y_pred_keras_train)
-        auc_keras_train = auc(fpr_keras_train, tpr_keras_train) 
-        
-        self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10)) 
+        auc_keras_train = auc(fpr_keras_train, tpr_keras_train)
+
+        self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10))
         plt.plot([0, 1], [0, 1], 'k--')
         plt.plot(fpr_keras_test, tpr_keras_test, label='Test (area = {:.3f})'.format(auc_keras_test))
         plt.plot(fpr_keras_train, tpr_keras_train, label='Train (area = {:.3f})'.format(auc_keras_train))
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
         plt.title('ROC curve')
-        plt.legend(loc='best') 
-        plt.tight_layout() 
+        plt.legend(loc='best')
+        plt.tight_layout()
 
-        return 
+        return
 
     def history_plot(self, history, from_log, label='accuracy'):
-        self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10)) 
+        self.fig, self.ax1 = plt.subplots(ncols=1, figsize=(10,10))
         fontsize = 30
-        ##-- If obtaining history information from log file, no need for .history method 
+        ##-- If obtaining history information from log file, no need for .history method
         if(from_log):
             plt.plot(history[label])
             plt.plot(history['val_'+label])
-        else: 
+        else:
             plt.plot(history.history[label])
-            plt.plot(history.history['val_'+label])      
+            plt.plot(history.history['val_'+label])
 
         plt.title('model '+label)
         plt.ylabel(label, fontsize = fontsize)
@@ -259,8 +259,8 @@ class plotter(object):
     def ROC_MultiClassifier(self, model, X_test, Y_test, X_train, Y_train):
 
         ##-- Plots:
-        ##-- Model 0 training + Model 1 training 
-        ##-- Model 0 test + Model 1 test 
+        ##-- Model 0 training + Model 1 training
+        ##-- Model 0 test + Model 1 test
 
         # Plot linewidth.
         lw = 2
@@ -268,24 +268,24 @@ class plotter(object):
         Y_test_score = model.predict(X_test)
         Y_train_score = model.predict(X_train)
 
-        # Compute ROC curve and ROC area for each class and test / train 
+        # Compute ROC curve and ROC area for each class and test / train
         fpr_test = dict()
         tpr_test = dict()
         roc_auc_test = dict()
 
         fpr_train = dict()
         tpr_train = dict()
-        roc_auc_train = dict()     
+        roc_auc_train = dict()
 
         for i in range(n_classes):
             ##-- Test
             fpr_test[i], tpr_test[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i])
-            roc_auc_test[i] = auc(fpr_test[i], tpr_test[i])     
+            roc_auc_test[i] = auc(fpr_test[i], tpr_test[i])
 
             ##-- Train
             fpr_train[i], tpr_train[i], _ = roc_curve(Y_train[:, i], Y_train_score[:, i])
-            roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])                    
-        
+            roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])
+
         class_dict = {
             0 : "HH",
             1 : "H",
@@ -294,14 +294,25 @@ class plotter(object):
 
         datasets = ["test", "train"]
 
-        ##-- Two plots: Class one test + train, Class two test + train 
+        print("fpr_test: ",fpr_test)
+        print("fpr_train: ",fpr_train)
+
+        ##-- Two plots: Class one test + train, Class two test + train
         for i in range(n_classes):
             className = class_dict[i]
             fig, ax = plt.subplots()
             for dataset in datasets:
-                exec("fpr = fpr_%s[i]"%(dataset))
-                exec("tpr = tpr_%s[i]"%(dataset))
-                exec("AUC = roc_auc_%s[i]"%(dataset))
+                # exec("fpr = fpr_%s[i]"%(dataset))
+                # exec("tpr = tpr_%s[i]"%(dataset))
+                # exec("AUC = roc_auc_%s[i]"%(dataset))
+                if dataset == "test":
+                    fpr = fpr_test[i]
+                    tpr = tpr_test[i]
+                    AUC = roc_auc_test[i]
+                elif dataset == "test":
+                    fpr = fpr_train[i]
+                    tpr = tpr_train[i]
+                    AUC = roc_auc_train[i]
                 plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
                          ''.format(className, dataset, AUC))
             plt.plot([0, 1], [0, 1], 'k--', lw=lw)
@@ -316,14 +327,22 @@ class plotter(object):
             plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
             plt.close()
 
-        ##-- Two plots: Test for both classes, train for both classes  
+        ##-- Two plots: Test for both classes, train for both classes
         for dataset in datasets:
             fig, ax = plt.subplots()
-            for i in range(n_classes):  
+            for i in range(n_classes):
                 className = class_dict[i]
-                exec("fpr = fpr_%s[i]"%(dataset))
-                exec("tpr = tpr_%s[i]"%(dataset))
-                exec("AUC = roc_auc_%s[i]"%(dataset))
+                # exec("fpr = fpr_%s[i]"%(dataset))
+                # exec("tpr = tpr_%s[i]"%(dataset))
+                # exec("AUC = roc_auc_%s[i]"%(dataset))
+                if dataset == "test":
+                    fpr = fpr_test[i]
+                    tpr = tpr_test[i]
+                    AUC = roc_auc_test[i]
+                elif dataset == "test":
+                    fpr = fpr_train[i]
+                    tpr = tpr_train[i]
+                    AUC = roc_auc_train[i]
                 plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
                          ''.format(className, dataset, AUC))
             plt.plot([0, 1], [0, 1], 'k--', lw=lw)
@@ -336,7 +355,7 @@ class plotter(object):
             save_name = "MultiClass_ROC_dataset_%s"%(dataset)
             plt.savefig("%s/%s.png"%(self.plots_directory,save_name))
             plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
-            plt.close()            
+            plt.close()
 
 
         # colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
@@ -399,7 +418,7 @@ class plotter(object):
         # plt.savefig("%s/%s.pdf"%(self.plots_directory,save_name))
         # plt.close()
 
-        return         
+        return
 
     def ROC_sklearn(self, original_encoded_train_Y, result_probs_train, original_encoded_test_Y, result_probs_test, encoded_signal, pltname='', train_weights=[], test_weights=[]):
 

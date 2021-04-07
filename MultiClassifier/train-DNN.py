@@ -39,7 +39,9 @@
 #
 # python train-DNN.py -t 1 -s 100Epochs-MultiClass-2Classes -i /eos/user/b/bmarzocc/HHWWgg/January_2021_Production/2017/ --FastCheck --Website /eos/user/a/atishelm/www/HHWWgg/DNN/ --MultiClass --SaveOutput
 ######################################################################################################################################################################
-
+# Next two files are to get rid of warning while traning on IHEP GPU
+import tempfile
+os.environ['MPLCONFIGDIR'] = tempfile.mkdtemp()
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
