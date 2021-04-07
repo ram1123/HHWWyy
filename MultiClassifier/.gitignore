@@ -1,2 +1,3 @@
 plotting/__init__.pyc
 plotting/plotter.pyc
+*.tex
