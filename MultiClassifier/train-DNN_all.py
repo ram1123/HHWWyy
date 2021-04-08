@@ -98,7 +98,7 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
     my_cols_list=variables
     data = pd.DataFrame(columns=my_cols_list)
     # keys=['HH','H','bckg']
-    keys=['HH','QCD','DiPhoton']
+    keys=['HH','QCD','DiPhoton','H','bckg']
     data = pd.DataFrame(columns=my_cols_list)
     for key in keys :
         print('key: ', key)
@@ -217,7 +217,7 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                 fileNames = fileNames_SL
             if (channel == "FH"):
                 fileNames = fileNames_FH
-            target = 1
+            target = 2
 
         elif key == 'QCD':
             sampleNames = key
@@ -231,7 +231,7 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                 fileNames = fileNames_SL
             if (channel == "FH"):
                 fileNames = fileNames_FH
-            target = 2
+            target = 3
 
         elif key == 'bckg':
             sampleNames = key
@@ -356,24 +356,26 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                     CutDict = {
                         0 : "(1.)", ##-- HH
                         1 : "(1.)", ##-- H
-                        2 : '( ( fabs(weight * kinWeight) < 10 ) )' ##-- Continuum Background, apply kinWeight fiducial cut to remove very large weight*kinWeight events
+                        2 : '( ( fabs(weight * kinWeight) < 10 ) )', ##-- Continuum Background, apply kinWeight fiducial cut to remove very large weight*kinWeight events
+                        3 : '( ( fabs(weight * kinWeight) < 10 ) )', ##-- Continuum Background, apply kinWeight fiducial cut to remove very large weight*kinWeight events
+                        4 : '( ( fabs(weight * kinWeight) < 10 ) )' ##-- Continuum Background, apply kinWeight fiducial cut to remove very large weight*kinWeight events
                     }
 
                 elif(not useKinWeight):
                     print("NOT APPLYING fiducial selection fabs(weight * kinWeight) < 10 to background events")
-                    # CutDict = {
-                    #     0 : "(1.)", ##-- HH
-                    #     1 : "(1.)", ##-- H
-                    #     2 : '(1.)', ##-- Diphoton
-                    #     3 : '(1.)', ##-- QCD
-                    #     4 : '(1.)' ##-- Continuum Background
-                    # }
-
                     CutDict = {
                         0 : "(1.)", ##-- HH
-                        1 : "(1.)", ##-- Diphoton
-                        2 : '(1.)' ##-- QCD
+                        1 : "(1.)", ##-- H
+                        2 : '(1.)', ##-- Diphoton
+                        3 : '(1.)', ##-- QCD
+                        4 : '(1.)' ##-- Continuum Background
                     }
+
+                    # CutDict = {
+                    #     0 : "(1.)", ##-- HH
+                    #     1 : "(1.)", ##-- Diphoton
+                    #     2 : '(1.)' ##-- QCD
+                    # }
 
                 if ch_0 is not None :
                     criteria_tmp = criteria
@@ -536,11 +538,13 @@ def main():
     # nHH = len(data.iloc[data.target.values == 1])
     # nbckg = len(data.iloc[data.target.values == 0])
 
-    nHH = len(data.iloc[data.target.values == 0])
-    nH = len(data.iloc[data.target.values == 1])
-    nbckg = len(data.iloc[data.target.values == 2])
+    nHH     = len(data.iloc[data.target.values == 0])
+    nH      = len(data.iloc[data.target.values == 1])
+    nDiPhoton = len(data.iloc[data.target.values == 2])
+    nQCD    = len(data.iloc[data.target.values == 3])
+    nbckg   = len(data.iloc[data.target.values == 4])
 
-    print("Total (train+validation) length of HH = %i, H = %i, bckg = %i" % (nHH, nH, nbckg))
+    print("Total (train+validation) length of HH = %i, H = %i, DiPhoton = %i, QCD = %i, bckg = %i" % (nHH, nH, nDiPhoton, nQCD, nbckg))
 
     # Make instance of plotter tool
     Plotter = plotter(args.Website)
@@ -555,19 +559,21 @@ def main():
     # Event weights
     weights_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'weight']
     # weights_for_HH_NLO = traindataset.loc[traindataset['process_ID']=='HH', 'weight_NLO_SM']
-    # weights_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'weight']
-    # weights_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'weight']
     weights_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'weight']
-    # weights_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'weight']
     weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
+
+    weights_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'weight']
+    weights_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'weight']
+    weights_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'weight']
     # weights_for_DY = traindataset.loc[traindataset['process_ID']=='DY', 'weight']
-    # weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
+    weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
     # weights_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'weight']
     # weights_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'weight']
 
     ##-- Compute weight sums
     # BkgProcs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
-    BkgProcs = ["DiPhoton", "QCD"]
+    BkgProcs = ["TTGsJets"]
+    # BkgProcs = ["DiPhoton", "QCD"]
 
     ##-- Computed Weighted sums for HH and Hgg, no kinweights
     # XS_HH = 31.049
@@ -583,11 +589,11 @@ def main():
     # GJetsum_weighted = sum(weights_for_GJet)
     QCDsum_weighted = sum(weights_for_QCD)
     # DYsum_weighted = sum(weights_for_DY)
-    # TTGsJetssum_weighted = sum(weights_for_TTGsJets)
+    TTGsJetssum_weighted = sum(weights_for_TTGsJets)
     # WGsJetssum_weighted = sum(weights_for_WGsJets)
     # WWsum_weighted = sum(weights_for_WW)
-    # VHToGGsum_weighted = sum(weights_for_VHToGG)
-    # ttHJetToGGsum_weighted = sum(weights_for_ttHJetToGG)
+    VHToGGsum_weighted = sum(weights_for_VHToGG)
+    ttHJetToGGsum_weighted = sum(weights_for_ttHJetToGG)
 
     ##-- If using kinematic weights, extract values from files and multiply with MC weights ('weight' branch) per event for MC weighted sums
     # if(useKinWeight):
@@ -610,39 +616,39 @@ def main():
 
     # bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
 
-    # Hggsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted
+    Hggsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted
 
     ##-- If running a multiclass neural network, do not include Hgg event sum in background sum, as this constitutes a different class
     # if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
-    if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + QCDsum_weighted
+    if(args.MultiClass): bckgsum_weighted = TTGsJetssum_weighted
     # else: bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
     else: bckgsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
 
     bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
 
     nevents_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'unweighted']
-    # nevents_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'unweighted']
-    # nevents_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'unweighted']
+    nevents_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'unweighted']
+    nevents_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'unweighted']
     nevents_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'unweighted']
     # nevents_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'unweighted']
     nevents_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'unweighted']
     # nevents_for_DY = traindataset.loc[traindataset['process_ID']=='DY', 'unweighted']
-    # nevents_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'unweighted']
+    nevents_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'unweighted']
     # nevents_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'unweighted']
     # nevents_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'unweighted']
 
     HHsum_unweighted= sum(nevents_for_HH)
-    # VHToGGsum_unweighted= sum(nevents_for_VHToGG)
-    # ttHJetToGGsum_unweighted= sum(nevents_for_ttHJetToGG)
+    VHToGGsum_unweighted= sum(nevents_for_VHToGG)
+    ttHJetToGGsum_unweighted= sum(nevents_for_ttHJetToGG)
     DiPhotonsum_unweighted= sum(nevents_for_DiPhoton)
     # GJetsum_unweighted= sum(nevents_for_GJet)
     QCDsum_unweighted= sum(nevents_for_QCD)
     # DYsum_unweighted= sum(nevents_for_DY)
-    # TTGsJetssum_unweighted= sum(nevents_for_TTGsJets)
+    TTGsJetssum_unweighted= sum(nevents_for_TTGsJets)
     # WGsJetssum_unweighted= sum(nevents_for_WGsJets)
     # WWsum_unweighted= sum(nevents_for_WW)
     # if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
-    if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + QCDsum_unweighted
+    if(args.MultiClass): bckgsum_unweighted = TTGsJetssum_unweighted
     else: bckgsum_unweighted = VHToGGsum_unweighted + ttHJetToGGsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
 
     ##-- Adjust class weights if desired

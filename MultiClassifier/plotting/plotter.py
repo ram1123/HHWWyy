@@ -289,30 +289,35 @@ class plotter(object):
         class_dict = {
             0 : "HH",
             1 : "H",
-            2 : "Bkg"
+            2 : "Diphoton",
+            3 : "QCD",
+            4 : "Bkg"
         }
 
         datasets = ["test", "train"]
+        # datasets = ["test"]
 
-        print("fpr_test: ",fpr_test)
-        print("fpr_train: ",fpr_train)
+        print("DEBUG: test...")
 
         ##-- Two plots: Class one test + train, Class two test + train
         for i in range(n_classes):
             className = class_dict[i]
             fig, ax = plt.subplots()
             for dataset in datasets:
+                # https://stackoverflow.com/a/65647108/2302094
                 # exec("fpr = fpr_%s[i]"%(dataset))
                 # exec("tpr = tpr_%s[i]"%(dataset))
                 # exec("AUC = roc_auc_%s[i]"%(dataset))
-                if dataset == "test":
-                    fpr = fpr_test[i]
-                    tpr = tpr_test[i]
-                    AUC = roc_auc_test[i]
-                elif dataset == "test":
-                    fpr = fpr_train[i]
-                    tpr = tpr_train[i]
-                    AUC = roc_auc_train[i]
+                lcls = locals()
+                exec("fpr = fpr_%s[i]"%(dataset), globals(), lcls)
+                exec("tpr = tpr_%s[i]"%(dataset), globals(), lcls)
+                exec("AUC = roc_auc_%s[i]"%(dataset), globals(), lcls)
+                fpr = lcls["fpr"]
+                tpr = lcls["tpr"]
+                AUC = lcls["AUC"]
+                #
+                # exec("global fpr; fpr = fpr_%s[i]"%(dataset))
+                print("fpr: ",fpr)
                 plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
                          ''.format(className, dataset, AUC))
             plt.plot([0, 1], [0, 1], 'k--', lw=lw)
@@ -335,14 +340,13 @@ class plotter(object):
                 # exec("fpr = fpr_%s[i]"%(dataset))
                 # exec("tpr = tpr_%s[i]"%(dataset))
                 # exec("AUC = roc_auc_%s[i]"%(dataset))
-                if dataset == "test":
-                    fpr = fpr_test[i]
-                    tpr = tpr_test[i]
-                    AUC = roc_auc_test[i]
-                elif dataset == "test":
-                    fpr = fpr_train[i]
-                    tpr = tpr_train[i]
-                    AUC = roc_auc_train[i]
+                lcls = locals()
+                exec("fpr = fpr_%s[i]"%(dataset), globals(), lcls)
+                exec("tpr = tpr_%s[i]"%(dataset), globals(), lcls)
+                exec("AUC = roc_auc_%s[i]"%(dataset), globals(), lcls)
+                fpr = lcls["fpr"]
+                tpr = lcls["tpr"]
+                AUC = lcls["AUC"]
                 plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
                          ''.format(className, dataset, AUC))
             plt.plot([0, 1], [0, 1], 'k--', lw=lw)

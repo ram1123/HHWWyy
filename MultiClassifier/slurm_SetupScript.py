@@ -2,7 +2,7 @@
 # @Author: Ram Krishna Sharma
 # @Date:   2021-04-06 12:05:34
 # @Last Modified by:   Ram Krishna Sharma
-# @Last Modified time: 2021-04-07 17:51:45
+# @Last Modified time: 2021-04-07 23:41:56
 
 ##
 ## USER MODIFIED STRING
@@ -12,7 +12,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dirTag', dest='dirTag', help='name of directory tag', default="TEST_args", type=str)
 parser.add_argument('-j', '--jobName', dest='jobName', help='Slurm job name', default="DNN", type=str)
-parser.add_argument('-s', '--scan', dest='scan', help='do RandomizedSearchCV scan or not', default=False, type=bool)
+# parser.add_argument('-s', '--scan', dest='scan', help='do RandomizedSearchCV scan or not', default=False, type=bool)
 
 args = parser.parse_args()
 
@@ -20,13 +20,14 @@ dirTag=args.dirTag
 MacroPath = '/hpcfs/bes/mlgpu/sharma/ML_GPU/MultiClassifier/MultiClassifier'
 LogDirPath = MacroPath + "/HHWWyyDNN_"+dirTag+"_BalanceYields/"
 
-print ("args.scan: ",args.scan)
+# print ("args.scan: ",args.scan)
 # if args.scan:
   # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -p 1 -g 0 -r 1"  # Scan using RandomizedSearchCV
   # CommandToRun = "python train-BinaryDNN.py -t 1 -s "+dirTag+" -p 1 -g 1 -r 0"  # Scan using RandomizedSearchCV
 # else:
   # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput "
-CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput "
+# CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput"
+CommandToRun = "python train-DNN_all.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput"
 
 #===================================================================
 import os
