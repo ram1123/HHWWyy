@@ -21,6 +21,19 @@ def load_trained_model(model_path):
     model = load_model(model_path, compile=False)
     return model
 
+
+METRICS = [
+      keras.metrics.TruePositives(name='tp'),
+      keras.metrics.FalsePositives(name='fp'),
+      keras.metrics.TrueNegatives(name='tn'),
+      keras.metrics.FalseNegatives(name='fn'),
+      keras.metrics.BinaryAccuracy(name='accuracy'),
+      keras.metrics.Precision(name='precision'),
+      keras.metrics.Recall(name='recall'),
+      keras.metrics.AUC(name='auc'),
+      keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
+]
+
 def baseline_model(num_variables,learn_rate=0.001):
     model = Sequential()
     model.add(Dense(64,input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
@@ -86,7 +99,39 @@ def MultiClassifier_Model(num_variables, nClasses, learn_rate=0.001):
     model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
     optimizer=Nadam(lr=learn_rate)
     model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
 
+def new_model5(
+               num_variables = 48,
+               nClasses = 3,
+               optimizer='Nadam',
+               activation='relu',
+               loss='categorical_crossentropy',
+               dropout_rate=0.2,
+               init_mode='glorot_normal',
+               learn_rate=0.001,
+               metrics=METRICS
+               ):
+    model = Sequential()
+    model.add(Dense(256, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(128))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(128))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(64))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    # model.compile(loss=loss,optimizer=optimizer,metrics=metrics)
+    model.compile(loss=loss,optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
     return model
 
 def GetFileInfo(filen, channel):
@@ -292,9 +337,59 @@ def GetFileInfo(filen, channel):
     ##                  Fully Hadronic mapping....                      ##
     ##                                                                  ##
     #====================================================================#
-    elif 'GluGluToHHTo2G4Q' in filen and channel == "FH":
+    # elif 'GluGluToHHTo2G4Q' in filen and channel == "FH":
+    #     treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
+    #     process_ID = 'HH'
+    #     elif ''
+    elif 'GluGluToHHTo2G4Q_node_cHHH1_2017' in filen:
         treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
         process_ID = 'HH'
+    elif 'GluGluToHHTo2G2ZTo2G4Q_node_cHHH1_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G2ZTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_1_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_1_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_2_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_2_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_3_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_3_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_4_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_4_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_5_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_5_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_6_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_6_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_7_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_7_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_8_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_8_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_9_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_9_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_10_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_10_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_11_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_11_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_12_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_12_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_SM_2017' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_SM_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+    elif 'GluGluToHHTo2G4Q_node_cHHH1_2018' in filen:
+        treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
+        process_ID = 'HH'
+
     elif 'datadriven' in filen and channel == "FH":
         treename=['tagsDumper/trees/Data_13TeV_HHWWggTag_1']
         process_ID = 'QCD'
@@ -319,5 +414,8 @@ def GetFileInfo(filen, channel):
     elif 'TTGJets_TuneCP5' in filen and channel == "FH":
         treename=['tagsDumper/trees/TTGJets_TuneCP5_13TeV_amcatnloFXFX_madspin_pythia8_13TeV_HHWWggTag_1']
         process_ID = 'TTGsJets'
+    elif '2B2G' in filen and channel == "FH":
+        treename=['tagsDumper/trees/GluGluToHHTo2B2G_node_cHHH1_13TeV_HHWWggTag_1']
+        process_ID = 'bbgg'
 
     return treename, process_ID

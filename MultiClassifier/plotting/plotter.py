@@ -279,6 +279,10 @@ class plotter(object):
 
         for i in range(n_classes):
             ##-- Test
+            print("i = ",i)
+            print("i = ",i)
+            print("Y_test[:, i] = ",Y_test[:, i])
+            print("Y_test_score[:, i] = ",Y_test_score[:, i])
             fpr_test[i], tpr_test[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i])
             roc_auc_test[i] = auc(fpr_test[i], tpr_test[i])
 
@@ -288,11 +292,18 @@ class plotter(object):
 
         class_dict = {
             0 : "HH",
-            1 : "H",
-            2 : "Diphoton",
-            3 : "QCD",
-            4 : "Bkg"
+            1 : "bbgg",
+            2 : "bckg",
+            # 3 : "QCD",
+            # 4 : "Bkg"
         }
+        # class_dict = {
+        #     0 : "HH",
+        #     1 : "H",
+        #     2 : "Diphoton",
+        #     3 : "QCD",
+        #     4 : "Bkg"
+        # }
 
         datasets = ["test", "train"]
         # datasets = ["test"]

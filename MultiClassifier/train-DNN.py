@@ -97,8 +97,9 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
     # Load dataset to .csv format file
     my_cols_list=variables
     data = pd.DataFrame(columns=my_cols_list)
-    # keys=['HH','H','bckg']
-    keys=['HH','QCD','DiPhoton']
+    # keys=['HH','H','bkg']
+    keys=['HH','bbgg','bkg']
+    # keys=['HH','DiPhoton','QCD']
     data = pd.DataFrame(columns=my_cols_list)
     for key in keys :
         print('key: ', key)
@@ -158,7 +159,20 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
             ]
 
             fileNames_FH = [
-                'GluGluToHHTo2G4Q_node_cHHH1_2017'
+                # 'GluGluToHHTo2G4Q_node_cHHH1_2017'
+                'GluGluToHHTo2G4Q_node_1_2017',
+                'GluGluToHHTo2G4Q_node_2_2017'
+                # 'GluGluToHHTo2G4Q_node_3_2017',
+                # 'GluGluToHHTo2G4Q_node_4_2017',
+                # 'GluGluToHHTo2G4Q_node_5_2017',
+                # 'GluGluToHHTo2G4Q_node_6_2017',
+                # 'GluGluToHHTo2G4Q_node_7_2017',
+                # 'GluGluToHHTo2G4Q_node_8_2017',
+                # 'GluGluToHHTo2G4Q_node_9_2017',
+                # 'GluGluToHHTo2G4Q_node_10_2017',
+                # 'GluGluToHHTo2G4Q_node_11_2017',
+                # 'GluGluToHHTo2G4Q_node_12_2017',
+                # 'GluGluToHHTo2G4Q_node_SM_2017',
             ]
 
             if(LessSamples):
@@ -194,10 +208,44 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                         'ttHJetToGG_2018_M125_HHWWggTag_0_MoreVars_even',
                         ]
             fileNames_FH = [
-                'ttHJetToGG_M125_13TeV',
-                'VBFHToGG_M125_13TeV',
-                'GluGluHToGG_M125_TuneCP5_13TeV',
-                'VHToGG_M125_13TeV',
+                # 'ttHJetToGG_M125_13TeV',
+                # 'VBFHToGG_M125_13TeV',
+                # 'GluGluHToGG_M125_TuneCP5_13TeV',
+                # 'VHToGG_M125_13TeV',
+                'GluGluToHHTo2B2G_node_cHHH1_2017'
+            ]
+            if (channel == "SL"):
+                fileNames = fileNames_SL
+            if (channel == "FH"):
+                fileNames = fileNames_FH
+            target = 1
+
+        elif key == 'bbgg':
+            sampleNames = key
+            subdir_name = 'Backgrounds'
+            fileNames = []
+            fileNames_SL = [
+                        ##-- 2016
+                        # 'GluGluHToGG_M125_2016_HHWWggTag_0_MoreVars_even',
+                        # 'VBFHToGG_M125_2016_HHWWggTag_0_MoreVars_even',
+                        ##-- 2017
+                        # 'GluGluHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        # 'VBFHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        'VHToGG_2017_HHWWggTag_0_MoreVars_even',
+                        'ttHJetToGG_2017_HHWWggTag_0_MoreVars_even',
+
+                        ##-- 2018
+                        # 'GluGluHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        # 'VBFHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        'VHToGG_M125_2018_HHWWggTag_0_MoreVars_even',
+                        'ttHJetToGG_2018_M125_HHWWggTag_0_MoreVars_even',
+                        ]
+            fileNames_FH = [
+                # 'ttHJetToGG_M125_13TeV',
+                # 'VBFHToGG_M125_13TeV',
+                # 'GluGluHToGG_M125_TuneCP5_13TeV',
+                # 'VHToGG_M125_13TeV',
+                'GluGluToHHTo2B2G_node_cHHH1_2017'
             ]
             if (channel == "SL"):
                 fileNames = fileNames_SL
@@ -233,7 +281,7 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                 fileNames = fileNames_FH
             target = 2
 
-        elif key == 'bckg':
+        elif key == 'bkg':
             sampleNames = key
             subdir_name = 'Backgrounds'
             fileNames = []
@@ -297,23 +345,23 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                 fileNames = ['DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg']
 
             fileNames_FH = [
-                # 'DiPhotonJetsBox_MGG-80toInf_13TeV',
+                'DiPhotonJetsBox_MGG-80toInf_13TeV',
                 'TTGG_0Jets_TuneCP5_13TeV',
                 'TTGJets_TuneCP5_13TeV',
-                # 'datadrivenQCD_v2'
+                'datadrivenQCD_v2'
             ]
             if (channel == "SL"):
                 fileNames = fileNames_SL
             if (channel == "FH"):
                 fileNames = fileNames_FH
-            target = 4
+            target = 2
         for filen in fileNames:
             treename, process_ID = GetFileInfo(filen,channel)
             print("filen:",filen)
 
             ##-- if 2016 or 2018 HH or H, replace 2017 in hardcoded path with 2016 or 2018
             if(target == 1):
-                inputPath_ = "/hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/"
+                inputPath_ = "/hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/"
                 if("2016" in filen):
                     subdir_name_ = "2016"
                 elif("2017" in filen):
@@ -371,8 +419,8 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
 
                     CutDict = {
                         0 : "(1.)", ##-- HH
-                        1 : "(1.)", ##-- Diphoton
-                        2 : '(1.)' ##-- QCD
+                        1 : "(1.)", ##-- bbgg
+                        2 : '(1.)' ##-- bkg
                     }
 
                 if ch_0 is not None :
@@ -380,7 +428,7 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                     #if process_ID == "HH": criteria_tmp = criteria + " && (event%2!=0)"
                     # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
 
-                    criteria_tmp = CutDict[target]
+                    # criteria_tmp = CutDict[target]
                     print("Sample Event Selection:",criteria_tmp)
 
                     # Create dataframe for ttree
@@ -393,15 +441,16 @@ def load_data(channel, inputPath, variables, criteria, LessSamples, useKinWeight
                     chunk_df = pd.DataFrame(chunk_arr, columns=my_cols_list)
                     # Add values for the process defined columns.
                     # (i.e. the values that do not change for a given process).
-                    chunk_df['key']=key
-                    chunk_df['target']=target
                     chunk_df['weight']=chunk_df['weight']
-                    # chunk_df['weight_NLO_SM']=chunk_df['weight_NLO_SM']
-                    # chunk_df['weight_NLO_SM']=1.0
-                    # chunk_df['kinWeight']=chunk_df['kinWeight']
-                    chunk_df['process_ID']=process_ID
-                    chunk_df['classweight']=1.0
+                    if 'HH' in key:
+                        chunk_df['weight_NLO_SM']=chunk_df['weight_NLO_SM']
+                    else:
+                        chunk_df['weight_NLO_SM']=1.0
                     chunk_df['unweighted'] = 1.0
+                    chunk_df['target']=target
+                    chunk_df['key']=key
+                    chunk_df['classweight']=1.0
+                    chunk_df['process_ID']=process_ID
                     #print "chunk_df:",chunk_df['weight'],chunk_df["weight_NLO_SM"]
                     # Append this chunk to the 'total' dataframe
                     data = data.append(chunk_df, ignore_index=True)
@@ -442,6 +491,26 @@ def main():
     args = parser.parse_args()
 
     print(sys.argv)
+
+    print('#---------------------------------------')
+    print('#    Print all input arguments         #')
+    print('#---------------------------------------')
+    print('train_model                   : %s'%(args.train_model))
+    print('suffix                        : %s'%(args.suffix))
+    print('Do hyper-parameter scan       : %s'%(args.hyp_param_scan))
+    print('inputs_file_path              : %s'%(args.inputs_file_path))
+    print("if LessSamples                : %s"%(args.LessSamples))
+    print("if MultiClass                 : %s"%(args.MultiClass))
+    print("Website path                  : %s"%(args.Website))
+    print("if SaveOutput                 : %s"%(args.SaveOutput))
+    print("epochs                        : %s"%(args.epochs))
+    print("useKinWeight                  : %s"%(args.useKinWeight))
+    print("--VHToGGClassWeightFactor     : %s"%(args.VHToGGClassWeightFactor))
+    print("--ttHJetToGGClassWeightFactor : %s"%(args.ttHJetToGGClassWeightFactor))
+    print("--BkgClassWeightFactor        : %s"%(args.BkgClassWeightFactor))
+    print("--channel                     : %s"%(args.channel))
+    print("--IHEPFix                     : %s"%(args.IHEPFix))
+    print('#---------------------------------------')
 
     do_model_fit = args.train_model
     suffix = args.suffix
@@ -490,7 +559,8 @@ def main():
 
 
     # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
-    selection_criteria = '( 1.>0. )'
+    # selection_criteria = '( 1.>0. )'
+    selection_criteria = '( (Leading_Photon_pt/CMS_hgg_mass) > 1/3. && (Subleading_Photon_pt/CMS_hgg_mass) > 1/4. && Leading_Photon_MVA>-0.7 && Subleading_Photon_MVA>-0.7)'
 
     # Load Variables from .json
     variable_list = json.load(input_var_jsonFile,encoding="utf-8").items()
@@ -500,7 +570,7 @@ def main():
     for key,var in variable_list:
         column_headers.append(key)
     column_headers.append('weight')
-    # column_headers.append('weight_NLO_SM')
+    column_headers.append('weight_NLO_SM')
     # column_headers.append('kinWeight')
     column_headers.append('unweighted')
     column_headers.append('target')
@@ -533,14 +603,16 @@ def main():
 
     print('<main> data columns: ', (data.columns.values.tolist()))
     n = len(data)
-    # nHH = len(data.iloc[data.target.values == 1])
-    # nbckg = len(data.iloc[data.target.values == 0])
 
     nHH = len(data.iloc[data.target.values == 0])
-    nH = len(data.iloc[data.target.values == 1])
-    nbckg = len(data.iloc[data.target.values == 2])
+    # nH = len(data.iloc[data.target.values == 1])
+    # nDiPhoton = len(data.iloc[data.target.values == 1])
+    nbbgg = len(data.iloc[data.target.values == 1])
+    nbkg = len(data.iloc[data.target.values == 2])
+    # nQCD = len(data.iloc[data.target.values == 2])
 
-    print("Total (train+validation) length of HH = %i, H = %i, bckg = %i" % (nHH, nH, nbckg))
+    # print("Total (train+validation) length of HH = %i, Diphoton = %i, QCD = %i" % (nHH, nDiPhoton, nQCD))
+    print("Total (train+validation) length of HH = %i, bbgg = %i, bkg = %i" % (nHH, nbbgg, nbkg))
 
     # Make instance of plotter tool
     Plotter = plotter(args.Website)
@@ -554,36 +626,45 @@ def main():
 
     # Event weights
     weights_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'weight']
-    # weights_for_HH_NLO = traindataset.loc[traindataset['process_ID']=='HH', 'weight_NLO_SM']
+    weights_for_HH_NLO = traindataset.loc[traindataset['process_ID']=='HH', 'weight_NLO_SM']
+    weights_for_bbgg = traindataset.loc[traindataset['process_ID']=='bbgg', 'weight']
+    weights_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'weight']
+    weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
+    weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
     # weights_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'weight']
     # weights_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'weight']
-    weights_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'weight']
     # weights_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'weight']
-    weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
+    # weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
+    # weights_for_bckg = traindataset.loc[traindataset['process_ID']=='bkg', 'weight']
     # weights_for_DY = traindataset.loc[traindataset['process_ID']=='DY', 'weight']
-    # weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
     # weights_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'weight']
     # weights_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'weight']
 
     ##-- Compute weight sums
     # BkgProcs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
-    BkgProcs = ["DiPhoton", "QCD"]
+    # BkgProcs = ["DiPhoton", "QCD"]
+    # BkgProcs = ["DiPhoton","QCD", "TTGsJets"]
+    BkgProcs = ["bbgg", "DiPhoton","QCD", "TTGsJets"]
 
     ##-- Computed Weighted sums for HH and Hgg, no kinweights
     # XS_HH = 31.049
     # BR_HH_WWgg = 0.000970198
     # BR_WWgg_qqlnu = 0.441 ##-- Semileptonic WW decay
 
-    # HHsum_weighted = sum(weights_for_HH*weights_for_HH_NLO)
-    HHsum_weighted = sum(weights_for_HH)
+    HHsum_weighted = sum(weights_for_HH*weights_for_HH_NLO)
+    # HHsum_weighted = sum(weights_for_HH)
 
     ##-- To apply HH XS and BR normalization to HHsum weighted
     # HHsum_weighted = HHsum_weighted * XS_HH * BR_HH_WWgg * BR_WWgg_qqlnu
+    BBgg_weighted = sum(weights_for_bbgg)
+
     DiPhotonsum_weighted = sum(weights_for_DiPhoton)
-    # GJetsum_weighted = sum(weights_for_GJet)
     QCDsum_weighted = sum(weights_for_QCD)
+    TTGsJetssum_weighted = sum(weights_for_TTGsJets)
+
+    # GJetsum_weighted = sum(weights_for_GJet)
+    # Bckg_weighted = sum(weights_for_bckg)
     # DYsum_weighted = sum(weights_for_DY)
-    # TTGsJetssum_weighted = sum(weights_for_TTGsJets)
     # WGsJetssum_weighted = sum(weights_for_WGsJets)
     # WWsum_weighted = sum(weights_for_WW)
     # VHToGGsum_weighted = sum(weights_for_VHToGG)
@@ -614,36 +695,51 @@ def main():
 
     ##-- If running a multiclass neural network, do not include Hgg event sum in background sum, as this constitutes a different class
     # if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
-    if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + QCDsum_weighted
+    # if(args.MultiClass): bckgsum_weighted = DiPhotonsum_weighted + QCDsum_weighted
+    # if(args.MultiClass): bckgsum_weighted = weights_for_bbgg + weights_for_DiPhoton + weights_for_QCD + weights_for_TTGsJets
+    if(args.MultiClass): bckgsum_weighted =  DiPhotonsum_weighted + QCDsum_weighted + TTGsJetssum_weighted
     # else: bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
-    else: bckgsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    # else: bckgsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    else: bckgsum_weighted = BBgg_weighted + DiPhotonsum_weighted + QCDsum_weighted + TTGsJetssum_weighted
 
     bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
 
     nevents_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'unweighted']
+
+    nevents_for_bbgg = traindataset.loc[traindataset['process_ID']=='bbgg', 'unweighted']
+
+    nevents_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'unweighted']
+    nevents_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'unweighted']
+    nevents_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'unweighted']
+
     # nevents_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'unweighted']
     # nevents_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'unweighted']
-    nevents_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'unweighted']
     # nevents_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'unweighted']
-    nevents_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'unweighted']
+    # nevents_for_bckg = traindataset.loc[traindataset['process_ID']=='bkg', 'unweighted']
     # nevents_for_DY = traindataset.loc[traindataset['process_ID']=='DY', 'unweighted']
-    # nevents_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'unweighted']
     # nevents_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'unweighted']
     # nevents_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'unweighted']
 
     HHsum_unweighted= sum(nevents_for_HH)
+
+    BBggsum_unweighted= sum(nevents_for_bbgg)
+
+    DiPhotonsum_unweighted = sum(nevents_for_DiPhoton)
+    QCDsum_unweighted = sum(nevents_for_QCD)
+    TTGsJetssum_unweighted = sum(nevents_for_TTGsJets)
     # VHToGGsum_unweighted= sum(nevents_for_VHToGG)
     # ttHJetToGGsum_unweighted= sum(nevents_for_ttHJetToGG)
-    DiPhotonsum_unweighted= sum(nevents_for_DiPhoton)
     # GJetsum_unweighted= sum(nevents_for_GJet)
-    QCDsum_unweighted= sum(nevents_for_QCD)
+    # Bckgsum_unweighted= sum(nevents_for_bckg)
     # DYsum_unweighted= sum(nevents_for_DY)
-    # TTGsJetssum_unweighted= sum(nevents_for_TTGsJets)
     # WGsJetssum_unweighted= sum(nevents_for_WGsJets)
     # WWsum_unweighted= sum(nevents_for_WW)
     # if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
-    if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + QCDsum_unweighted
-    else: bckgsum_unweighted = VHToGGsum_unweighted + ttHJetToGGsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
+    # if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + QCDsum_unweighted
+    # if(args.MultiClass): bckgsum_unweighted = BBggsum_unweighted + DiPhotonsum_unweighted + QCDsum_unweighted + TTGsJetssum_unweighted
+    if(args.MultiClass): bckgsum_unweighted =  DiPhotonsum_unweighted + QCDsum_unweighted + TTGsJetssum_unweighted
+    else: bckgsum_unweighted = BBggsum_unweighted + DiPhotonsum_unweighted + QCDsum_unweighted + TTGsJetssum_unweighted
+    # else: bckgsum_unweighted = VHToGGsum_unweighted + ttHJetToGGsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
 
     ##-- Adjust class weights if desired
     if(ttHJetToGGClassWeightFactor != 1.):
@@ -663,15 +759,21 @@ def main():
     ##-- Define class weights
     if weights=='BalanceYields':
         print('HHsum_weighted= ' , HHsum_weighted)
-        # print('Hggsum_weighted= ' , Hggsum_weighted)
+
+        print('BBgg_weighted= ', BBgg_weighted)
+
         print('DiPhotonsum_weighted= ', DiPhotonsum_weighted)
-        # print('GJetsum_weighted= ', GJetsum_weighted)
         print('QCDsum_weighted= ', QCDsum_weighted)
+        print('TTGsJetssum_weighted= ', TTGsJetssum_weighted)
+        # print('Hggsum_weighted= ' , Hggsum_weighted)
+        # print('GJetsum_weighted= ', GJetsum_weighted)
+        # print('QCDsum_weighted= ', QCDsum_weighted)
+        # print('Bckg_weighted= ', Bckg_weighted)
         # print('DYsum_weighted= ', DYsum_weighted)
-        # print('TTGsJetssum_weighted= ', TTGsJetssum_weighted)
         # print('WGsJetssum_weighted= ', WGsJetssum_weighted)
         # print('WWsum_weighted= ', WWsum_weighted)
-        print('bckgsum_weighted= ', bckgsum_weighted)
+
+        print('bckgsum_weighted = ', bckgsum_weighted)
 
         ##-- Choose class weight scale target
         classweight_Target = HHsum_unweighted
@@ -703,7 +805,12 @@ def main():
             print('HH weighted:' , round(HHsum_weighted, 6))
             print('HH Class Weight:',round(classweight_Target/HHsum_weighted, 6))
             print(' ')
-            print('----[H class]----')
+            print('----[bbgg class]----')
+            print('bbgg unweighted:' , round(BBggsum_unweighted, 6))
+            print('bbgg weighted:' , round(BBgg_weighted, 6))
+            print('bbgg Class Weight:',round(classweight_Target/BBgg_weighted, 6))
+
+            # print('----[H class]----')
             # print('VHToGG unweighted:' , int(VHToGGsum_unweighted))
             # print('VHToGG weighted:' , round(VHToGGsum_weighted, 6))
             # print('VHToGG Class Weight:',(round(classweight_Target/VHToGGsum_weighted, 6)))
@@ -714,13 +821,13 @@ def main():
             # print('Hgg weighted:' , round(Hggsum_weighted, 6))
             # print('Hgg Class Weight:',(round(classweight_Target/Hggsum_weighted, 6)))
             # print(' ')
-            print('----[QCD class]----')
-            print('QCD unweighted:', int(QCDsum_unweighted))
-            print('QCD weighted:', int(QCDsum_weighted))
+            # print('----[QCD class]----')
+            # print('QCD unweighted:', int(QCDsum_unweighted))
+            # print('QCD weighted:', int(QCDsum_weighted))
             print(' ')
-            print('----[DiPhoton class]----')
-            print('DiPhoton unweighted:', int(DiPhotonsum_unweighted))
-            print('DiPhotonsum_weighted:', round(DiPhotonsum_weighted, 6))
+            # print('----[DiPhoton class]----')
+            # print('DiPhoton unweighted:', int(DiPhotonsum_unweighted))
+            # print('DiPhotonsum_weighted:', round(DiPhotonsum_weighted, 6))
             print(' ')
             # print('GJet unweighted:', int(GJetsum_unweighted))
             # print('GJetsum_weighted:', round(GJetsum_weighted, 6))
@@ -751,38 +858,49 @@ def main():
 
         else: traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_weighted)
 
+        traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/bckgsum_weighted)
+
         traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_weighted)
-        # traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
+
         # traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (classweight_Target/bckgsum_weighted)
-        # traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        # traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_weighted)
         # traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
         # traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (classweight_Target/bckgsum_weighted)
 
     if weights=='BalanceNonWeighted':
         print('HHsum_unweighted= ' , HHsum_unweighted)
-        # print('Hggsum_unweighted= ' , Hggsum_unweighted)
+
+        print('bbggsum_unweighted= ' , bbggsum_unweighted)
+
         print('DiPhotonsum_unweighted= ', DiPhotonsum_unweighted)
-        # print('GJetsum_unweighted= ', GJetsum_unweighted)
         print('QCDsum_unweighted= ', QCDsum_unweighted)
+        print('TTGsJetssum_unweighted= ', TTGsJetssum_unweighted)
+
+        # print('Hggsum_unweighted= ' , Hggsum_unweighted)
+        # print('GJetsum_unweighted= ', GJetsum_unweighted)
         # print('DYsum_unweighted= ', DYsum_unweighted)
-        # print('TTGsJetssum_unweighted= ', TTGsJetssum_unweighted)
         # print('WGsJetssum_unweighted= ', WGsJetssum_unweighted)
         # print('WWsum_unweighted= ', WWsum_unweighted)
         print('bckgsum_unweighted= ', bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = 1.
-        # traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+
+        traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+
         traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-        # traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+        traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+
         # traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-        # traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+        # traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+        # traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_unweighted)
         # traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted)
         # traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (classweight_Target/bckgsum_unweighted)
 
     # Remove column headers that aren't input variables
     # nonTrainingVariables = ['weight', 'weight_NLO_SM', 'kinWeight', 'unweighted', 'target', 'key', 'classweight', 'process_ID']
-    nonTrainingVariables = ['weight', 'unweighted', 'target', 'key', 'classweight', 'process_ID']
+    nonTrainingVariables = ['weight', 'weight_NLO_SM', 'unweighted', 'target', 'key', 'classweight', 'process_ID']
 
     # column_headers.append('weight')
     # column_headers.append('weight_NLO_SM')
@@ -795,7 +913,7 @@ def main():
 
     training_columns = [h for h in column_headers if h not in nonTrainingVariables]
 
-    # training_columns = column_headers[:-7]
+    # training_columns = column_headers[:-5]
     print('<train-DNN> Training features: ', training_columns)
 
     column_order_txt = '%s/column_order.txt' %(output_directory)
@@ -818,21 +936,21 @@ def main():
     train_df = data.iloc[:traindataset.shape[0]]
 
     # Event weights if wanted
-    #train_weights = traindataset['weight'].values*traindataset['weight_NLO_SM'].values
-    #test_weights = valdataset['weight'].values*valdataset['weight_NLO_SM'].values
+    # train_weights = traindataset['weight'].values*traindataset['weight_NLO_SM'].values
+    # test_weights = valdataset['weight'].values*valdataset['weight_NLO_SM'].values
     # train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)
     # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)
     # train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
     # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
-    test_weights = abs(valdataset['weight'].values)
-    train_weights = abs(traindataset['weight'].values)
+    train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)
+    test_weights  = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)
+    # test_weights = abs(valdataset['weight'].values)
+    # train_weights = abs(traindataset['weight'].values)
 
     if(useKinWeight):
         print("INCLUDING kinematic weights in training and test weights")
-        # train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
-        # test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(valdataset['kinWeight'].values)
-        train_weights = abs(traindataset['weight'].values)
-        test_weights = abs(valdataset['weight'].values)
+        train_weights = abs(traindataset['weight'].values)*abs(traindataset['weight_NLO_SM'].values)*abs(traindataset['kinWeight'].values)
+        test_weights = abs(valdataset['weight'].values)*abs(valdataset['weight_NLO_SM'].values)*abs(valdataset['kinWeight'].values)
 
     # Weights applied during training.
     if weights=='BalanceYields':
@@ -841,11 +959,10 @@ def main():
             trainingweights = traindataset.loc[:,'classweight'].abs()*traindataset.loc[:,'weight'].abs()*traindataset.loc[:,'weight_NLO_SM'].abs()*traindataset.loc[:,'kinWeight'].abs()
         elif(not useKinWeight):
             print("NOT INCLUDING kinWeight in training weights")
-            # trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']*traindataset.loc[:,'weight_NLO_SM']
-            trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']
+            trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight']*traindataset.loc[:,'weight_NLO_SM']
 
     if weights=='BalanceNonWeighted':
-        trainingweights = traindataset.loc[:,'classweight']
+        trainingweights = traindataset.loc[:,'classweight']*traindataset.loc[:,'weight_NLO_SM']
     trainingweights = np.array(trainingweights)
 
     ## Input Variable Correlation plot
@@ -873,18 +990,18 @@ def main():
 
         if hyp_param_scan == 1:
             print('Begin at local time: ', time.localtime())
-            hyp_param_scan_name = 'hyp_param_scan_results.txt'
+            hyp_param_scan_name = output_directory+'/hyp_param_scan_results.txt'
             hyp_param_scan_results = open(hyp_param_scan_name,'a')
             time_str = str(time.localtime())+'\n'
             hyp_param_scan_results.write(time_str)
             hyp_param_scan_results.write(weights)
             learn_rates=[0.00001, 0.0001]
             epochs = [150,200]
-            batch_size = [400,500]
+            batch_size = [200, 400]
             param_grid = dict(learn_rate=learn_rates,epochs=epochs,batch_size=batch_size)
-            model = KerasClassifier(build_fn=gscv_model,verbose=0)
+            model = KerasClassifier(build_fn=new_model5,verbose=1)
             grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
-            grid_result = grid.fit(X_train,Y_train,shuffle=True,sample_weight=trainingweights)
+            grid_result = grid.fit(X_train,Y_train,shuffle=True,verbose=1,sample_weight=trainingweights)
             print("Best score: %f , best params: %s" % (grid_result.best_score_,grid_result.best_params_))
             hyp_param_scan_results.write("Best score: %f , best params: %s\n" %(grid_result.best_score_,grid_result.best_params_))
             means = grid_result.cv_results_['mean_test_score']
@@ -901,7 +1018,8 @@ def main():
             if(args.MultiClass):
                 # nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
                 nClasses = 3 ##-- HH, H, Bkg (continuum)
-                model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
+                # model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
+                model = new_model5(num_variables, nClasses, learn_rate=learn_rate)
             else:
                 model = new_model(num_variables, learn_rate=learn_rate)
 
@@ -913,7 +1031,7 @@ def main():
             ##-- Note: Removes early_stopping_monitor. Should only be used for a stable training
             if(args.SaveOutput):
                 csv_logger = CSVLogger('%s/training.log'%(output_directory), separator=',', append=False)
-                history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[csv_logger])
+                history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[csv_logger,early_stopping_monitor])
 
             else:
                 history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=1,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])

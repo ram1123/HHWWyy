@@ -2,12 +2,13 @@
 # @Author: Ram Krishna Sharma
 # @Date:   2021-04-06 12:05:34
 # @Last Modified by:   Ram Krishna Sharma
-# @Last Modified time: 2021-04-07 23:41:56
+# @Last Modified time: 2021-07-14
 
 ##
 ## USER MODIFIED STRING
 ##
 
+import time
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dirTag', dest='dirTag', help='name of directory tag', default="TEST_args", type=str)
@@ -25,9 +26,9 @@ LogDirPath = MacroPath + "/HHWWyyDNN_"+dirTag+"_BalanceYields/"
   # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -p 1 -g 0 -r 1"  # Scan using RandomizedSearchCV
   # CommandToRun = "python train-BinaryDNN.py -t 1 -s "+dirTag+" -p 1 -g 1 -r 0"  # Scan using RandomizedSearchCV
 # else:
-  # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput "
-# CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput"
-CommandToRun = "python train-DNN_all.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v2/ --MultiClass --SaveOutput"
+  # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput "
+CommandToRun = "python train-DNN.py     -p 1 -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput -e 200"
+# CommandToRun = "python train-DNN_all.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput"
 
 #===================================================================
 import os
@@ -56,7 +57,7 @@ SlurmJobName = args.jobName+"_"+DateTimeString
 
 print("Name of slurm script: %s"%(SlurmScriptName))
 
-LimitOutTextFile = open(SlurmScriptName, "w")
+LimitOutTextFile = open(os.path.join(LogDirPath,SlurmScriptName), "w")
 message = """#! /bin/bash
 
 ######## Part 1 #########
@@ -97,7 +98,8 @@ message = """#! /bin/bash
 
 # Replace the following lines with your real workload
 ########################################
-source /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-centos7-gcc8-opt/setup.sh
+# source /cvmfs/sft.cern.ch/lcg/views/dev4cuda/latest/x86_64-centos7-gcc8-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_100cuda/x86_64-centos7-gcc8-opt/setup.sh
 # pip install shap
 export QT_QPA_PLATFORM=offscreen
 # Reference: https://stackoverflow.com/a/55210689/2302094
@@ -128,7 +130,19 @@ message = message %(SlurmJobName,LogDirPath,MacroPath,CommandToRun,dirTag,dirTag
 LimitOutTextFile.write(message+"\n")
 
 LimitOutTextFile.close()
-os.system('cp '+SlurmScriptName+' '+LogDirPath)
+# os.system('cp '+SlurmScriptName+' '+LogDirPath)
 print("Log directory name: %s"%LogDirPath)
 print("Run slurm script using:")
-print("\tsbatch %s"%SlurmScriptName)
+print("\tsbatch %s"%(os.path.join(LogDirPath,SlurmScriptName)))
+os.system("sbatch %s"%(os.path.join(LogDirPath,SlurmScriptName)))
+
+time.sleep(3)
+print("Check if *.out file exists or not...")
+for files_ in sorted(os.listdir(LogDirPath)):
+  # print ("files_: %s"%files_)
+  if files_.endswith(".out"):
+    print("tail -f {}".format(os.path.join(LogDirPath,files_)))
+  # else:
+    # print("No log file found...")
+
+
