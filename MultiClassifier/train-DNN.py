@@ -1073,7 +1073,7 @@ def main():
     CONVERT_COMMAND = "python ../convert_hdf5_2_pb.py --input %s/model.h5 --output %s/model.pb"%(output_directory, output_directory)
     print("Converting model.h5 to model.pb...")
     print(CONVERT_COMMAND)
-    # os.system(CONVERT_COMMAND)
+    os.system(CONVERT_COMMAND)
 
     with open(model_json_name,'w') as json_file:
         json_file.write(model_json)
