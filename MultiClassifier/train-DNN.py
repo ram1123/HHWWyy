@@ -477,6 +477,8 @@ def main():
     parser.add_argument('-s', '--suff', dest='suffix', help='Option to choose suffix for training', default='', type=str)
     parser.add_argument('-p', '--para', dest='hyp_param_scan', help='Option to run hyper-parameter scan', default=0, type=int)
     parser.add_argument('-i', '--inputs_file_path', dest='inputs_file_path', help='Path to directory containing directories \'Bkgs\' and \'Signal\' which contain background and signal ntuples respectively.', default='', type=str)
+    parser.add_argument('-j', '--json', dest='json', help='input variable json file', default='input_variables.json', type=str)
+
     parser.add_argument("--LessSamples", action="store_true", help = "Run with minimal backgrounds, signals in order to quickly test network configuration")
     parser.add_argument("--MultiClass", action="store_true", help = "Train a multiclassifier network")
     parser.add_argument("--Website", type = str, default = "", help = "Output files to website path")
@@ -499,6 +501,7 @@ def main():
     print('suffix                        : %s'%(args.suffix))
     print('Do hyper-parameter scan       : %s'%(args.hyp_param_scan))
     print('inputs_file_path              : %s'%(args.inputs_file_path))
+    print('Input var file                : %s'%(args.json))
     print("if LessSamples                : %s"%(args.LessSamples))
     print("if MultiClass                 : %s"%(args.MultiClass))
     print("Website path                  : %s"%(args.Website))
@@ -529,14 +532,14 @@ def main():
     validation_split=0.1
     # hyper-parameter scan results
     if weights == 'BalanceNonWeighted':
-        learn_rate = 0.0005
+        learn_rate = 0.00001
         epochs = args.epochs
-        batch_size=200
+        batch_size=100
     if weights == 'BalanceYields':
-        learn_rate = 0.0001
+        learn_rate = 0.00001
         epochs = args.epochs
         # batch_size=100
-        batch_size=500
+        batch_size=100
 
     # Create instance of output directory where all results are saved.
     output_directory = '%sHHWWyyDNN_%s_%s/' % (args.Website,suffix,weights)
@@ -553,7 +556,8 @@ def main():
     plots_dir = os.path.join(output_directory,'plots/')
     # print("INPUT VARIABLES JSON INCLUDES CMS_hgg_mass ONLY FOR CHECKING CORRELATION")
     # print("SHOULD NOT TRAIN ON THIS VARIABLE")
-    input_var_jsonFile = open('input_variables.json','r')
+    # input_var_jsonFile = open('input_variables.json','r')
+    input_var_jsonFile = open(args.json,'r')
 
     # input_var_jsonFile = open('input_variables_withHggMass.json','r')
 
@@ -561,6 +565,7 @@ def main():
     # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
     # selection_criteria = '( 1.>0. )'
     selection_criteria = '( (Leading_Photon_pt/CMS_hgg_mass) > 1/3. && (Subleading_Photon_pt/CMS_hgg_mass) > 1/4. && Leading_Photon_MVA>-0.7 && Subleading_Photon_MVA>-0.7)'
+    # selection_criteria = '( (Leading_Photon_pt/CMS_hgg_mass) > 1/3. && (Subleading_Photon_pt/CMS_hgg_mass) > 1/4. && Leading_Photon_MVA>-0.7 && Subleading_Photon_MVA>-0.7 && SumTwoMaxBjets<0.6186)'
 
     # Load Variables from .json
     variable_list = json.load(input_var_jsonFile,encoding="utf-8").items()
@@ -1019,7 +1024,7 @@ def main():
                 # nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
                 nClasses = 3 ##-- HH, H, Bkg (continuum)
                 # model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
-                model = new_model5(num_variables, nClasses, learn_rate=learn_rate)
+                model = new_model5(num_variables, nClasses, optimizer='Nadam', activation='relu', loss='categorical_crossentropy', dropout_rate=0.1,  init_mode='glorot_normal', learn_rate=learn_rate)
             else:
                 model = new_model(num_variables, learn_rate=learn_rate)
 

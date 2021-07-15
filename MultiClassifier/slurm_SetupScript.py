@@ -2,7 +2,7 @@
 # @Author: Ram Krishna Sharma
 # @Date:   2021-04-06 12:05:34
 # @Last Modified by:   Ram Krishna Sharma
-# @Last Modified time: 2021-07-14
+# @Last Modified time: 2021-07-15
 
 ##
 ## USER MODIFIED STRING
@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dirTag', dest='dirTag', help='name of directory tag', default="TEST_args", type=str)
 parser.add_argument('-j', '--jobName', dest='jobName', help='Slurm job name', default="DNN", type=str)
 # parser.add_argument('-s', '--scan', dest='scan', help='do RandomizedSearchCV scan or not', default=False, type=bool)
+parser.add_argument('-json', '--json', dest='json', help='input variable json file', default='input_variables.json', type=str)
 
 args = parser.parse_args()
 
@@ -27,7 +28,7 @@ LogDirPath = MacroPath + "/HHWWyyDNN_"+dirTag+"_BalanceYields/"
   # CommandToRun = "python train-BinaryDNN.py -t 1 -s "+dirTag+" -p 1 -g 1 -r 0"  # Scan using RandomizedSearchCV
 # else:
   # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput "
-CommandToRun = "python train-DNN.py     -p 1 -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput -e 200"
+CommandToRun = "python train-DNN.py     -p 0 -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput -e 700 -j "+args.json
 # CommandToRun = "python train-DNN_all.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput"
 
 #===================================================================
@@ -38,7 +39,13 @@ def check_dir(dir):
         os.makedirs(dir)
         # os.system("cp dnn_parameter.json "+dir)
 
-check_dir(LogDirPath)
+def CopyImportFiles(dir):
+    # os.system("cp dnn_parameter.json "+dir)
+    os.system("cp  "+args.json+" "+dir)
+    os.system("cp train-DNN.py "+dir)
+
+check_dir(LogDirPath.replace("//","/"))
+CopyImportFiles(LogDirPath.replace("//","/"))
 
 from datetime import datetime
 CURRENT_DATETIME = datetime.now()

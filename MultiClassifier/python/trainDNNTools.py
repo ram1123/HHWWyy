@@ -102,31 +102,31 @@ def MultiClassifier_Model(num_variables, nClasses, learn_rate=0.001):
     return model
 
 def new_model5(
-               num_variables = 48,
-               nClasses = 3,
+               num_variables,
+               nClasses,
                optimizer='Nadam',
                activation='relu',
                loss='categorical_crossentropy',
-               dropout_rate=0.2,
+               dropout_rate=0.1,
                init_mode='glorot_normal',
                learn_rate=0.001,
                metrics=METRICS
                ):
     model = Sequential()
     model.add(Dense(256, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
-    # model.add(BatchNormalization())
+    model.add(BatchNormalization())
     model.add(Activation(activation))
     model.add(Dropout(dropout_rate))
     model.add(Dense(128))
-    # model.add(BatchNormalization())
+    model.add(BatchNormalization())
     model.add(Activation(activation))
     model.add(Dropout(dropout_rate))
     model.add(Dense(128))
-    # model.add(BatchNormalization())
+    model.add(BatchNormalization())
     model.add(Activation(activation))
     model.add(Dropout(dropout_rate))
     model.add(Dense(64))
-    # model.add(BatchNormalization())
+    model.add(BatchNormalization())
     model.add(Activation(activation))
     model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
     optimizer=Nadam(lr=learn_rate)
