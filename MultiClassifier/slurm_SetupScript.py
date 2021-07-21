@@ -2,7 +2,7 @@
 # @Author: Ram Krishna Sharma
 # @Date:   2021-04-06 12:05:34
 # @Last Modified by:   Ram Krishna Sharma
-# @Last Modified time: 2021-07-15
+# @Last Modified time: 2021-07-21
 
 ##
 ## USER MODIFIED STRING
@@ -13,8 +13,22 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dirTag', dest='dirTag', help='name of directory tag', default="TEST_args", type=str)
 parser.add_argument('-j', '--jobName', dest='jobName', help='Slurm job name', default="DNN", type=str)
-# parser.add_argument('-s', '--scan', dest='scan', help='do RandomizedSearchCV scan or not', default=False, type=bool)
+parser.add_argument('-s', '--scan', dest='scan', help='do RandomizedSearchCV scan or not', default=False, type=bool)
+parser.add_argument('-w', '--weights', dest='weights', help='weights to use', default='BalanceYields', type=str,choices=['BalanceYields','BalanceNonWeighted'])
+parser.add_argument('-dlr', '--dynamic_lr', dest='dynamic_lr', help='vary learn rate with epoch', default=False, type=bool)
+parser.add_argument('-lr', '--lr', dest='learnRate', help='Learn rate', default=0.1, type=float)
+parser.add_argument("-e", "--epochs", type=int, default=10, help = "Number of epochs to train")
+parser.add_argument("-b", "--batch_size", type=int, default=100, help = "Number of batch_size to train")
+parser.add_argument("-o", "--optimizer", type=str, default="Nadam", help = "Name of optimizer to train with")
+parser.add_argument("-a", "--activation", type=str, default="relu", help = "activation to be used. default is the relu")
+parser.add_argument("-dropout_rate", "--dropout_rate", type=float, default=0.2, help = "dropout rate to be used. Default value is 0.2")
+parser.add_argument('-cw', '--classweight', dest='classweight', help='classweight to use', default=False, type=bool)
+parser.add_argument('-sw', '--sampleweight', dest='sampleweight', help='sampleweight to use', default=False, type=bool)
+parser.add_argument("-nHiddenLayer", "--nHiddenLayer", type=int, default=1, help = "Number of Hidden layers")
+parser.add_argument("-dropoutLayer", "--dropoutLayer", type=int, default=0, help = "If you want to include dropoutLayer with the first two hidden layers")
 parser.add_argument('-json', '--json', dest='json', help='input variable json file', default='input_variables.json', type=str)
+parser.add_argument('-c', dest="cutString", type=str, default="( 1.>0. )", help="cut selection to apply")
+parser.add_argument("-nlayers", "--nlayers", type=int, default=1, help = "Number of hidden layers in the network")
 
 args = parser.parse_args()
 
@@ -28,7 +42,7 @@ LogDirPath = MacroPath + "/HHWWyyDNN_"+dirTag+"_BalanceYields/"
   # CommandToRun = "python train-BinaryDNN.py -t 1 -s "+dirTag+" -p 1 -g 1 -r 0"  # Scan using RandomizedSearchCV
 # else:
   # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput "
-CommandToRun = "python train-DNN.py     -p 0 -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput -e 700 -j "+args.json
+CommandToRun = "python train-DNN.py       -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ -t 1 -s "+dirTag+" --MultiClass --SaveOutput "+" -lr "+str(args.learnRate)+" -e "+str(args.epochs)+" -b "+str(args.batch_size)+" -o "+args.optimizer + " -j "+args.json + " -a " + str(args.activation) + " -d " + str(args.dropout_rate) + " -nlayers " + str(args.nlayers) + " -c '" + args.cutString+"'"
 # CommandToRun = "python train-DNN_all.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput"
 
 #===================================================================
@@ -43,6 +57,7 @@ def CopyImportFiles(dir):
     # os.system("cp dnn_parameter.json "+dir)
     os.system("cp  "+args.json+" "+dir)
     os.system("cp train-DNN.py "+dir)
+    os.system("cp python/trainDNNTools.py  "+dir)
 
 check_dir(LogDirPath.replace("//","/"))
 CopyImportFiles(LogDirPath.replace("//","/"))

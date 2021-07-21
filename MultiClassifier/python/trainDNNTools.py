@@ -101,6 +101,78 @@ def MultiClassifier_Model(num_variables, nClasses, learn_rate=0.001):
     model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
     return model
 
+def MultiClassifier_Modelv1(num_variables, nClasses, learn_rate=0.001):
+    model = Sequential()
+    model.add(Dense(64, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+def MultiClassifier_Modelv2(num_variables, nClasses, learn_rate=0.001):
+    model = Sequential()
+    model.add(Dense(64, input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    model.add(Dense(32,activation='relu'))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+def MultiClassifier_Modelv3(num_variables, nClasses, learn_rate=0.001):
+    model = Sequential()
+    model.add(Dense(64, input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    model.add(Dense(32,activation='relu'))
+    model.add(Dense(16,activation='relu'))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+def MultiClassifier_Modelv4(num_variables, nClasses, learn_rate=0.001):
+    model = Sequential()
+    model.add(Dense(64, input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    model.add(Dense(32,activation='relu'))
+    model.add(Dense(16,activation='relu'))
+    model.add(Dense(8,activation='relu'))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+
+def MultiClassifier_ModelVarLayerV1(num_variables, nClasses, learn_rate=0.001, nlayers = 1):
+    model = Sequential()
+    neuronsHiddenLayer = []
+    neuronsInputLayer = num_variables
+    for x in range(0,20):
+        if ((((neuronsInputLayer+1)*2)/3) <= nClasses): break
+        neuronsHiddenLayer.append((((neuronsInputLayer+1)*2)/3))
+        neuronsInputLayer = neuronsHiddenLayer[x]
+    model.add(Dense(neuronsHiddenLayer[0], input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    for x in range(1,nlayers):
+        model.add(Dense(neuronsHiddenLayer[x],activation='relu'))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+def MultiClassifier_ModelVarLayerV2(num_variables, nClasses, learn_rate=0.001, nlayers = 1):
+    model = Sequential()
+    neuronsHiddenLayer = []
+    neuronsInputLayer = 256
+    for x in range(0,20):
+        if ((((neuronsInputLayer+1)*2)/3) <= nClasses): break
+        neuronsHiddenLayer.append((((neuronsInputLayer+1)*2)/3))
+        neuronsInputLayer = neuronsHiddenLayer[x]
+    model.add(Dense(neuronsHiddenLayer[0], input_dim=num_variables,kernel_initializer='glorot_normal',activation='relu'))
+    for x in range(1,nlayers):
+        model.add(Dense(neuronsHiddenLayer[x],activation='relu'))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+
 def new_model5(
                num_variables,
                nClasses,
@@ -127,6 +199,39 @@ def new_model5(
     model.add(Dropout(dropout_rate))
     model.add(Dense(64))
     model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    # model.compile(loss=loss,optimizer=optimizer,metrics=metrics)
+    model.compile(loss=loss,optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
+
+def new_model6(
+               num_variables,
+               nClasses,
+               optimizer='Nadam',
+               activation='relu',
+               loss='categorical_crossentropy',
+               dropout_rate=0.1,
+               init_mode='glorot_normal',
+               learn_rate=0.001,
+               metrics=METRICS
+               ):
+    model = Sequential()
+    model.add(Dense(256, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(128))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(128))
+    # model.add(BatchNormalization())
+    model.add(Activation(activation))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(64))
+    # model.add(BatchNormalization())
     model.add(Activation(activation))
     model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
     optimizer=Nadam(lr=learn_rate)

@@ -45,7 +45,18 @@ KS.set_learning_phase(0)
 
 print( 'args.input: ', args.input)
 model = load_model(args.input)
+print("="*51)
 model.summary()
+
+print("="*51)
+print(model)
+print("="*51)
+print(model.outputs)
+print(type(model.outputs))
+print(model.outputs[0])
+print(type(model.outputs[0]))
+print(model.outputs[0].shape)
+print("="*51)
 
 #raise RuntimeError("stop")
 
@@ -53,7 +64,7 @@ model.summary()
 input_nodes = [model.inputs[0].name] #"main_input"]#  [model.inputs[0].name]
 output_nodes = [model.outputs[0].name] #"main_output/Softmax"]#["output_node"]
 #input_nodes = ["main_input"]#  [model.inputs[0].name]
-#output_nodes = ["main_output/Softmax"]#["output_node"]
+# output_nodes = ["main_output/Softmax"]#["output_node"]
 #node_wrapper = tf.identity(model.outputs[0], name=output_nodes[0])
 
 print("Input node name : {}".format(input_nodes[0]))

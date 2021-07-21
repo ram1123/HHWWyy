@@ -1,5 +1,5 @@
 import numpy as np
-#import shap
+import shap
 import pandas
 import os
 import sklearn
@@ -82,8 +82,13 @@ class plotter(object):
             # ax2 = axarr[1]
 
             labelReplaceDict = {
-                'goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Subleading_Jet_bScore",
                 'goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_0_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Leading_Jet_bScore",
+                'goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_1_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Subleading_Jet_bScore",
+                'goodJets_2_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_2_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_2_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Sub2leading_Jet_bScore",
+                'goodJets_3_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_3_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_3_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Sub3leading_Jet_bScore",
+                'goodJets_4_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_4_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_4_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Sub4leading_Jet_bScore",
+                'goodJets_5_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_5_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_5_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Sub5leading_Jet_bScore",
+                'goodJets_6_bDiscriminator_mini_pfDeepFlavourJetTags_probb + goodJets_6_bDiscriminator_mini_pfDeepFlavourJetTags_probbb + goodJets_6_bDiscriminator_mini_pfDeepFlavourJetTags_problepb' : "Sub6leading_Jet_bScore",
             }
 
             # print("self.data:",self.data)
@@ -109,7 +114,7 @@ class plotter(object):
 
             matrix = self.data.corr(method='spearman')
 
-            print("matrix before :",matrix)
+            # print("matrix before :",matrix)
 
             matrix_cp = matrix.copy()
 
@@ -117,7 +122,7 @@ class plotter(object):
             # matrix.drop("CMS_hgg_mass", inplace=True, axis=0) ##-- remove row
             # self.labels = np.delete(self.labels, -2) ##--Remove CMS_hgg_mass from labels
 
-            print("matrix after :",matrix)
+            # print("matrix after :",matrix)
             mask = np.triu(matrix)
             LowerMatrix = np.tril(matrix)
 
@@ -277,19 +282,6 @@ class plotter(object):
         tpr_train = dict()
         roc_auc_train = dict()
 
-        for i in range(n_classes):
-            ##-- Test
-            print("i = ",i)
-            print("i = ",i)
-            print("Y_test[:, i] = ",Y_test[:, i])
-            print("Y_test_score[:, i] = ",Y_test_score[:, i])
-            fpr_test[i], tpr_test[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i])
-            roc_auc_test[i] = auc(fpr_test[i], tpr_test[i])
-
-            ##-- Train
-            fpr_train[i], tpr_train[i], _ = roc_curve(Y_train[:, i], Y_train_score[:, i])
-            roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])
-
         class_dict = {
             0 : "HH",
             1 : "bbgg",
@@ -304,6 +296,26 @@ class plotter(object):
         #     3 : "QCD",
         #     4 : "Bkg"
         # }
+
+        for i in range(n_classes):
+            ##-- Test
+            # print("i = ",i)
+            # print("i = ",i)
+            # print("Y_test[:, i] = ",Y_test[:, i])
+            # print("Y_test_score[:, i] = ",Y_test_score[:, i])
+            fpr_test[i], tpr_test[i], _ = roc_curve(Y_test[:, i], Y_test_score[:, i])
+            roc_auc_test[i] = auc(fpr_test[i], tpr_test[i])
+
+            ##-- Train
+            fpr_train[i], tpr_train[i], _ = roc_curve(Y_train[:, i], Y_train_score[:, i])
+            roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])
+
+            print('#---------------------------------------')
+            print('#    Print ROC AUC   (Class:{})        #'.format(class_dict[i]))
+            print('#---------------------------------------')
+            print("     ROC AUC (Test  area,{:5}) = {:.3f}".format(class_dict[i],roc_auc_test[i]))
+            print("     ROC AUC (Train area,{:5}) = {:.3f}".format(class_dict[i],roc_auc_train[i]))
+            print('#---------------------------------------')
 
         datasets = ["test", "train"]
         # datasets = ["test"]
@@ -328,7 +340,7 @@ class plotter(object):
                 AUC = lcls["AUC"]
                 #
                 # exec("global fpr; fpr = fpr_%s[i]"%(dataset))
-                print("fpr: ",fpr)
+                # print("fpr: ",fpr)
                 plt.plot(fpr, tpr, lw=lw, label = 'ROC {0} {1} (area = {2:0.3f})'
                          ''.format(className, dataset, AUC))
             plt.plot([0, 1], [0, 1], 'k--', lw=lw)

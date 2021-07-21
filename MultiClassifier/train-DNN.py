@@ -48,8 +48,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from datetime import datetime
 import pickle
-# import shap
+import shap
 from array import array
 import time
 import pandas
@@ -85,6 +86,23 @@ from python.trainDNNTools import *
 seed = 7
 np.random.seed(7)
 rng = np.random.RandomState(31337)
+CURRENT_DATETIME = datetime.now()
+
+def GenerateGitPatchAndLog(logFileName,GitPatchName):
+    #CMSSWDirPath = os.environ['CMSSW_BASE']
+    #CMSSWRel = CMSSWDirPath.split("/")[-1]
+
+    os.system('git diff > '+GitPatchName)
+
+    outScript = open(logFileName,"w");
+    #outScript.write('\nCMSSW Version used: '+CMSSWRel+'\n')
+    #outScript.write('\nCurrent directory path: '+CMSSWDirPath+'\n')
+    outScript.close()
+
+    os.system('echo -e "\n\n============\n== Latest commit summary \n\n" >> '+logFileName )
+    os.system("git log -1 --pretty=tformat:' Commit: %h %n Date: %ad %n Relative time: %ar %n Commit Message: %s' >> "+logFileName )
+    os.system('echo -e "\n\n============\n" >> '+logFileName )
+    os.system('git log -1 --format="SHA: %H" >> '+logFileName )
 
 def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch'):
     eos_dir = '/eos/user/%s ' % (directory)
@@ -479,17 +497,27 @@ def main():
     parser.add_argument('-i', '--inputs_file_path', dest='inputs_file_path', help='Path to directory containing directories \'Bkgs\' and \'Signal\' which contain background and signal ntuples respectively.', default='', type=str)
     parser.add_argument('-j', '--json', dest='json', help='input variable json file', default='input_variables.json', type=str)
 
+    parser.add_argument('-dlr', '--dynamic_lr', dest='dynamic_lr', help='vary learn rate with epoch', default=False, type=bool)
+    parser.add_argument("-e", "--epochs", type=int, default=200, help = "Number of epochs to train")
+    parser.add_argument("-b", "--batch_size", type=int, default=100, help = "Number of batch_size to train")
+    parser.add_argument("-o", "--optimizer", type=str, default="Nadam", help = "Name of optimizer to train with")
+    parser.add_argument("-a", "--activation", type=str, default="relu", help = "activation to be used. default is the relu")
+    parser.add_argument("-d", "--dropout_rate", type=float, default=0.2, help = "dropout rate to be used. Default value is 0.2")
+    parser.add_argument('-lr', '--lr', dest='learn_rate', help='Learn rate', default=0.1, type=float)
+    parser.add_argument("-nlayers", "--nlayers", type=int, default=1, help = "Number of hidden layers in the network")
+
     parser.add_argument("--LessSamples", action="store_true", help = "Run with minimal backgrounds, signals in order to quickly test network configuration")
     parser.add_argument("--MultiClass", action="store_true", help = "Train a multiclassifier network")
     parser.add_argument("--Website", type = str, default = "", help = "Output files to website path")
     parser.add_argument("--SaveOutput", action="store_true", help = "Save X and Y train and test arrays as pickle files")
-    parser.add_argument("-e", "--epochs", type = int, default = 200, help = "Number of epochs to train")
     parser.add_argument("--useKinWeight", action="store_true", help = "Use kinematic MC weights, derived to improve Data / MC agreement, in training")
     parser.add_argument("--VHToGGClassWeightFactor", type = float, default = 1., help = "Factor to adjust Hgg class weights")
     parser.add_argument("--ttHJetToGGClassWeightFactor", type = float, default = 1., help = "Factor to adjust Hgg class weights")
     parser.add_argument("--BkgClassWeightFactor", type = float, default = 1., help = "Factor to adjust bkg class weights")
     parser.add_argument("--channel", type=str, default = "FH", help = "Which channel we are running on FH or SL?")
     parser.add_argument("--IHEPFix", type=bool, default = False, help = "On IHEP machine ")
+
+    parser.add_argument("-c", dest="cutString", type=str, default="( 1.>0. )", help="cut selection to apply")
     args = parser.parse_args()
 
     print(sys.argv)
@@ -507,6 +535,11 @@ def main():
     print("Website path                  : %s"%(args.Website))
     print("if SaveOutput                 : %s"%(args.SaveOutput))
     print("epochs                        : %s"%(args.epochs))
+    print("batch_size                    : %s"%(args.batch_size))
+    print("optimizer                     : %s"%(args.optimizer))
+    print("activation                    : %s"%(args.activation))
+    print("dropout_rate                  : %s"%(args.dropout_rate))
+    print("learn_rate                     : %s"%(args.learn_rate))
     print("useKinWeight                  : %s"%(args.useKinWeight))
     print("--VHToGGClassWeightFactor     : %s"%(args.VHToGGClassWeightFactor))
     print("--ttHJetToGGClassWeightFactor : %s"%(args.ttHJetToGGClassWeightFactor))
@@ -528,22 +561,48 @@ def main():
 
     # Set model hyper-parameters
     weights='BalanceYields'# 'BalanceYields' or 'BalanceNonWeighted'
-    optimizer = 'Nadam'
+    optimizer = args.optimizer
+    activation = args.activation
+    dropout_rate = args.dropout_rate
     validation_split=0.1
+
     # hyper-parameter scan results
     if weights == 'BalanceNonWeighted':
-        learn_rate = 0.00001
         epochs = args.epochs
-        batch_size=100
+        batch_size=args.batch_size
+        learn_rate = args.learn_rate
     if weights == 'BalanceYields':
-        learn_rate = 0.00001
         epochs = args.epochs
-        # batch_size=100
-        batch_size=100
+        batch_size=args.batch_size
+        learn_rate = args.learn_rate
+
+    print('#---------------------------------------')
+    print("Input DNN parameters:")
+    print("\tepochs: ",epochs)
+    print("\tbatch_size: ",batch_size)
+    print("\tlearn_rate: ",learn_rate)
+    print("\toptimizer: ",optimizer)
+    print('#---------------------------------------')
+
+    """
+    Before we start save git patch. This will be helpful in debug the code later or taking care of the differences between many traning directory.
+    """
+    LogdirName= "gitLog_"+(str(CURRENT_DATETIME.year)[-2:]
+              +str(format(CURRENT_DATETIME.month,'02d'))
+              +str(format(CURRENT_DATETIME.day,'02d'))
+              +"_"
+              +str(format(CURRENT_DATETIME.hour,'02d'))
+              +str(format(CURRENT_DATETIME.minute,'02d'))
+              +str(format(CURRENT_DATETIME.second,'02d'))
+              )
+    GenerateGitPatchAndLog(LogdirName+".log",LogdirName+".patch")
 
     # Create instance of output directory where all results are saved.
     output_directory = '%sHHWWyyDNN_%s_%s/' % (args.Website,suffix,weights)
     check_dir(output_directory, args.Website)
+
+    os.system('mv '+LogdirName+".log "+LogdirName+".patch "+output_directory)
+
     hyperparam_file = os.path.join(output_directory,'additional_model_hyper_params.txt')
     additional_hyperparams = open(hyperparam_file,'w')
     additional_hyperparams.write("optimizer: "+optimizer+"\n")
@@ -564,11 +623,31 @@ def main():
 
     # selection_criteria = '( ( fabs(weight * kinWeight) < 10 ) )'
     # selection_criteria = '( 1.>0. )'
-    selection_criteria = '( (Leading_Photon_pt/CMS_hgg_mass) > 1/3. && (Subleading_Photon_pt/CMS_hgg_mass) > 1/4. && Leading_Photon_MVA>-0.7 && Subleading_Photon_MVA>-0.7)'
+    # selection_criteria = '( (Leading_Photon_pt/CMS_hgg_mass) > 1/3. && (Subleading_Photon_pt/CMS_hgg_mass) > 1/4. && Leading_Photon_MVA>-0.7 && Subleading_Photon_MVA>-0.7)'
     # selection_criteria = '( (Leading_Photon_pt/CMS_hgg_mass) > 1/3. && (Subleading_Photon_pt/CMS_hgg_mass) > 1/4. && Leading_Photon_MVA>-0.7 && Subleading_Photon_MVA>-0.7 && SumTwoMaxBjets<0.6186)'
-
+    selection_criteria = args.cutString
+    print(" ")
+    print("Selection criteria: {}".format(selection_criteria))
+    print(" ")
     # Load Variables from .json
     variable_list = json.load(input_var_jsonFile,encoding="utf-8").items()
+
+    # Earlier this framework is keeping .csv file in the output directory of
+    # a particular run. But this takes lots of time in reading the same data
+    # again and again. So, now I am sending the .csv file into the directory named
+    # with the same name as the json file.
+    #
+    # NOTE (IMP): If the list of variable changes then change the name of
+    # json file. Else it will read the old list of input variables. If you
+    # want to keep the same name of json file then remove the directory that
+    # corresponds to this name (it it exits).
+    #
+    # TO-DO: Make the code intelligent so that it will first check if the
+    # input variables is exactly same as the one that already exits. If yes,
+    # then delete the old entry and create a new one.
+    CSV_file_Dir_Name = (args.json).replace(".json","")
+    if not os.path.isdir(CSV_file_Dir_Name): os.mkdir(CSV_file_Dir_Name)
+    os.system('cp '+args.json +' '+CSV_file_Dir_Name+"/") # also copy the json file to the new created directory
 
     # Create list of headers for dataset .csv
     column_headers = []
@@ -576,7 +655,6 @@ def main():
         column_headers.append(key)
     column_headers.append('weight')
     column_headers.append('weight_NLO_SM')
-    # column_headers.append('kinWeight')
     column_headers.append('unweighted')
     column_headers.append('target')
     column_headers.append('key')
@@ -585,7 +663,8 @@ def main():
 
     # Load ttree into .csv including all variables listed in column_headers
     print('<train-DNN> Input file path: ', inputs_file_path)
-    outputdataframe_name = '%s/output_dataframe.csv' %(output_directory)
+    # outputdataframe_name = '%s/output_dataframe.csv' %(output_directory)
+    outputdataframe_name = '%s/output_dataframe.csv' %(CSV_file_Dir_Name)
     if os.path.isfile(outputdataframe_name):
         data = pandas.read_csv(outputdataframe_name)
         print('<train-DNN> Loading data .csv from: %s . . . . ' % (outputdataframe_name))
@@ -610,11 +689,8 @@ def main():
     n = len(data)
 
     nHH = len(data.iloc[data.target.values == 0])
-    # nH = len(data.iloc[data.target.values == 1])
-    # nDiPhoton = len(data.iloc[data.target.values == 1])
     nbbgg = len(data.iloc[data.target.values == 1])
     nbkg = len(data.iloc[data.target.values == 2])
-    # nQCD = len(data.iloc[data.target.values == 2])
 
     # print("Total (train+validation) length of HH = %i, Diphoton = %i, QCD = %i" % (nHH, nDiPhoton, nQCD))
     print("Total (train+validation) length of HH = %i, bbgg = %i, bkg = %i" % (nHH, nbbgg, nbkg))
@@ -636,19 +712,8 @@ def main():
     weights_for_DiPhoton = traindataset.loc[traindataset['process_ID']=='DiPhoton', 'weight']
     weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
     weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'weight']
-    # weights_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'weight']
-    # weights_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'weight']
-    # weights_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'weight']
-    # weights_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'weight']
-    # weights_for_bckg = traindataset.loc[traindataset['process_ID']=='bkg', 'weight']
-    # weights_for_DY = traindataset.loc[traindataset['process_ID']=='DY', 'weight']
-    # weights_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'weight']
-    # weights_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'weight']
 
     ##-- Compute weight sums
-    # BkgProcs = ["DiPhoton", "GJet", "QCD", "DY", "TTGsJets", "WGsJets", "WW"]
-    # BkgProcs = ["DiPhoton", "QCD"]
-    # BkgProcs = ["DiPhoton","QCD", "TTGsJets"]
     BkgProcs = ["bbgg", "DiPhoton","QCD", "TTGsJets"]
 
     ##-- Computed Weighted sums for HH and Hgg, no kinweights
@@ -661,19 +726,11 @@ def main():
 
     ##-- To apply HH XS and BR normalization to HHsum weighted
     # HHsum_weighted = HHsum_weighted * XS_HH * BR_HH_WWgg * BR_WWgg_qqlnu
-    BBgg_weighted = sum(weights_for_bbgg)
+    BBggsum_weighted = sum(weights_for_bbgg)
 
     DiPhotonsum_weighted = sum(weights_for_DiPhoton)
     QCDsum_weighted = sum(weights_for_QCD)
     TTGsJetssum_weighted = sum(weights_for_TTGsJets)
-
-    # GJetsum_weighted = sum(weights_for_GJet)
-    # Bckg_weighted = sum(weights_for_bckg)
-    # DYsum_weighted = sum(weights_for_DY)
-    # WGsJetssum_weighted = sum(weights_for_WGsJets)
-    # WWsum_weighted = sum(weights_for_WW)
-    # VHToGGsum_weighted = sum(weights_for_VHToGG)
-    # ttHJetToGGsum_weighted = sum(weights_for_ttHJetToGG)
 
     ##-- If using kinematic weights, extract values from files and multiply with MC weights ('weight' branch) per event for MC weighted sums
     # if(useKinWeight):
@@ -705,7 +762,7 @@ def main():
     if(args.MultiClass): bckgsum_weighted =  DiPhotonsum_weighted + QCDsum_weighted + TTGsJetssum_weighted
     # else: bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
     # else: bckgsum_weighted = VHToGGsum_weighted + ttHJetToGGsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
-    else: bckgsum_weighted = BBgg_weighted + DiPhotonsum_weighted + QCDsum_weighted + TTGsJetssum_weighted
+    else: bckgsum_weighted = BBggsum_weighted + DiPhotonsum_weighted + QCDsum_weighted + TTGsJetssum_weighted
 
     bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
 
@@ -717,14 +774,6 @@ def main():
     nevents_for_QCD = traindataset.loc[traindataset['process_ID']=='QCD', 'unweighted']
     nevents_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'unweighted']
 
-    # nevents_for_VHToGG = traindataset.loc[traindataset['process_ID']=='VHToGG', 'unweighted']
-    # nevents_for_ttHJetToGG = traindataset.loc[traindataset['process_ID']=='ttHJetToGG', 'unweighted']
-    # nevents_for_GJet = traindataset.loc[traindataset['process_ID']=='GJet', 'unweighted']
-    # nevents_for_bckg = traindataset.loc[traindataset['process_ID']=='bkg', 'unweighted']
-    # nevents_for_DY = traindataset.loc[traindataset['process_ID']=='DY', 'unweighted']
-    # nevents_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'unweighted']
-    # nevents_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'unweighted']
-
     HHsum_unweighted= sum(nevents_for_HH)
 
     BBggsum_unweighted= sum(nevents_for_bbgg)
@@ -732,19 +781,9 @@ def main():
     DiPhotonsum_unweighted = sum(nevents_for_DiPhoton)
     QCDsum_unweighted = sum(nevents_for_QCD)
     TTGsJetssum_unweighted = sum(nevents_for_TTGsJets)
-    # VHToGGsum_unweighted= sum(nevents_for_VHToGG)
-    # ttHJetToGGsum_unweighted= sum(nevents_for_ttHJetToGG)
-    # GJetsum_unweighted= sum(nevents_for_GJet)
-    # Bckgsum_unweighted= sum(nevents_for_bckg)
-    # DYsum_unweighted= sum(nevents_for_DY)
-    # WGsJetssum_unweighted= sum(nevents_for_WGsJets)
-    # WWsum_unweighted= sum(nevents_for_WW)
-    # if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
-    # if(args.MultiClass): bckgsum_unweighted = DiPhotonsum_unweighted + QCDsum_unweighted
-    # if(args.MultiClass): bckgsum_unweighted = BBggsum_unweighted + DiPhotonsum_unweighted + QCDsum_unweighted + TTGsJetssum_unweighted
+
     if(args.MultiClass): bckgsum_unweighted =  DiPhotonsum_unweighted + QCDsum_unweighted + TTGsJetssum_unweighted
     else: bckgsum_unweighted = BBggsum_unweighted + DiPhotonsum_unweighted + QCDsum_unweighted + TTGsJetssum_unweighted
-    # else: bckgsum_unweighted = VHToGGsum_unweighted + ttHJetToGGsum_unweighted + DiPhotonsum_unweighted + GJetsum_unweighted + QCDsum_unweighted + DYsum_unweighted + TTGsJetssum_unweighted + WGsJetssum_unweighted + WWsum_unweighted
 
     ##-- Adjust class weights if desired
     if(ttHJetToGGClassWeightFactor != 1.):
@@ -765,18 +804,10 @@ def main():
     if weights=='BalanceYields':
         print('HHsum_weighted= ' , HHsum_weighted)
 
-        print('BBgg_weighted= ', BBgg_weighted)
-
+        print('BBggsum_weighted= ', BBggsum_weighted)
         print('DiPhotonsum_weighted= ', DiPhotonsum_weighted)
         print('QCDsum_weighted= ', QCDsum_weighted)
         print('TTGsJetssum_weighted= ', TTGsJetssum_weighted)
-        # print('Hggsum_weighted= ' , Hggsum_weighted)
-        # print('GJetsum_weighted= ', GJetsum_weighted)
-        # print('QCDsum_weighted= ', QCDsum_weighted)
-        # print('Bckg_weighted= ', Bckg_weighted)
-        # print('DYsum_weighted= ', DYsum_weighted)
-        # print('WGsJetssum_weighted= ', WGsJetssum_weighted)
-        # print('WWsum_weighted= ', WWsum_weighted)
 
         print('bckgsum_weighted = ', bckgsum_weighted)
 
@@ -787,71 +818,39 @@ def main():
         if(args.MultiClass):
 
             ##-- Output unweighted, weighted yields and class weights to tex style table
+            traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/BBggsum_weighted)
 
             ##-- TeX file table
-            fileName = "DNN_YieldsAndWeights.tex"
+            fileName = output_directory+'/DNN_YieldsAndWeights.tex'
             file = open(fileName,"w")
             file.write("\\begin{table}[H]\n")
             file.write("\t\\begin{center}\n")
             file.write("\t\t\\begin{tabular}{c|c|c|c}\n")
-            file.write("\t\t\tClass & Unweighted Yield & Weighted Yield & Class Weight \\\ \\hline \n")
-
-            ##-- Scale ttHJet and VH separately based on their weighted yields
-            # traindataset.loc[traindataset['process_ID']=='VHToGG', ['classweight']] = (classweight_Target/VHToGGsum_weighted) ##-- Scale all Hgg events to HH unweighted
-            # traindataset.loc[traindataset['process_ID']=='ttHJetToGG', ['classweight']] = (classweight_Target/ttHJetToGGsum_weighted) ##-- Scale all Hgg events to HH unweighted
-
-            ##-- Scale ttHJet and VH in the same way - based on weighted sum of Hgg yields
-            # traindataset.loc[traindataset['process_ID']=='VHToGG', ['classweight']] = (classweight_Target/Hggsum_weighted) ##-- Scale all Hgg events to HH unweighted
-            # traindataset.loc[traindataset['process_ID']=='ttHJetToGG', ['classweight']] = (classweight_Target/Hggsum_weighted) ##-- Scale all Hgg events to HH unweighted
+            file.write("\t\t\tClass & Unweighted Yield & Weighted Yield & Class Weight & ClassWeight*Weighted Yield \\\ \\hline \n")
 
             ##-- Printout class weights
             print('----[HH class]----')
             print('HH unweighted:',int(HHsum_unweighted))
             print('HH weighted:' , round(HHsum_weighted, 6))
             print('HH Class Weight:',round(classweight_Target/HHsum_weighted, 6))
+            print('HH Class Weight*HH weighted::',round((classweight_Target*HHsum_weighted)/HHsum_weighted, 6))
             print(' ')
             print('----[bbgg class]----')
             print('bbgg unweighted:' , round(BBggsum_unweighted, 6))
-            print('bbgg weighted:' , round(BBgg_weighted, 6))
-            print('bbgg Class Weight:',round(classweight_Target/BBgg_weighted, 6))
-
-            # print('----[H class]----')
-            # print('VHToGG unweighted:' , int(VHToGGsum_unweighted))
-            # print('VHToGG weighted:' , round(VHToGGsum_weighted, 6))
-            # print('VHToGG Class Weight:',(round(classweight_Target/VHToGGsum_weighted, 6)))
-            # print('ttHJetToGG unweighted:' , int(ttHJetToGGsum_unweighted))
-            # print('ttHJetToGG weighted:' , round(ttHJetToGGsum_weighted, 6))
-            # print('ttHJetToGG Class Weight:',(round(classweight_Target/ttHJetToGGsum_weighted, 6)))
-            # print('Hgg unweighted:' , int(Hggsum_unweighted))
-            # print('Hgg weighted:' , round(Hggsum_weighted, 6))
-            # print('Hgg Class Weight:',(round(classweight_Target/Hggsum_weighted, 6)))
-            # print(' ')
-            # print('----[QCD class]----')
-            # print('QCD unweighted:', int(QCDsum_unweighted))
-            # print('QCD weighted:', int(QCDsum_weighted))
+            print('bbgg weighted:' , round(BBggsum_weighted, 6))
+            print('bbgg Class Weight:',round(classweight_Target/BBggsum_weighted, 6))
+            print('bbgg Class Weight:',round((classweight_Target*BBggsum_weighted)/BBggsum_weighted, 6))
             print(' ')
-            # print('----[DiPhoton class]----')
-            # print('DiPhoton unweighted:', int(DiPhotonsum_unweighted))
-            # print('DiPhotonsum_weighted:', round(DiPhotonsum_weighted, 6))
-            print(' ')
-            # print('GJet unweighted:', int(GJetsum_unweighted))
-            # print('GJetsum_weighted:', round(GJetsum_weighted, 6))
-            # print(' ')
-            # print('TTGsJets unweighted:', int(TTGsJetssum_unweighted))
-            # print('TTGsJetssum_weighted:', round(TTGsJetssum_weighted, 6))
-            # print(' ')
-            # print('WGsJets unweighted:', int(WGsJetssum_unweighted))
-            # print('WGsJetssum_weighted:', round(WGsJetssum_weighted, 6))
-            # print(' ')
             print('----[Bkg class]----')
             print('Bkg Unweighted:', int(bckgsum_unweighted))
             print('Bkg Weighted:', round(bckgsum_weighted, 6))
             print(' ')
             print('Bkg Class Weight:',round((classweight_Target/bckgsum_weighted), 6))
+            print('Bkg Class Weight:',round(((classweight_Target*bckgsum_weighted)/bckgsum_weighted), 6))
 
-            file.write("\t\t\t HH & %s & %s & %s \\\ \n"%(int(HHsum_unweighted), round(HHsum_weighted, 4), round(classweight_Target/HHsum_weighted, 4)))
-            # file.write("\t\t\t H & %s & %s & %s \\\ \n"%(int(Hggsum_unweighted), round(Hggsum_weighted, 4), round(classweight_Target/Hggsum_weighted, 4)))
-            file.write("\t\t\t Continuum Background & %s & %s & %s \\\ \n"%(int(bckgsum_unweighted), round(bckgsum_weighted, 4), round(classweight_Target/bckgsum_weighted, 4)))
+            file.write("\t\t\t HH & %s & %s & %s & %s \\\ \n"%(int(HHsum_unweighted), round(HHsum_weighted, 4), round(classweight_Target/HHsum_weighted, 4),round((classweight_Target/HHsum_weighted)*HHsum_weighted, 4)))
+            file.write("\t\t\t bbgg (/bbgg)& %s & %s & %s & %s \\\ \n"%(int(BBggsum_unweighted), round(BBggsum_weighted, 4), round(classweight_Target/BBggsum_weighted, 4),round((classweight_Target/BBggsum_weighted)*BBggsum_weighted, 4)))
+            file.write("\t\t\t Continuum Background & %s & %s & %s  & %s \\\ \n"%(int(bckgsum_unweighted), round(bckgsum_weighted, 4), round(classweight_Target/bckgsum_weighted, 4),round((classweight_Target/bckgsum_weighted)*bckgsum_weighted, 4)))
 
             file.write("\t\t\end{tabular}\n")
             file.write("\t\caption{Unweighted and weighted yields, and class weights applied in the Semi-Leptonic DNN training}\n")
@@ -861,37 +860,27 @@ def main():
             file.close()
 
 
-        else: traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        else: traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/bckgsum_weighted)
 
-        traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/bckgsum_weighted)
+        # traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/bckgsum_weighted)
 
         traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
 
-        # traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (classweight_Target/bckgsum_weighted)
-        # traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_weighted)
-        # traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (classweight_Target/bckgsum_weighted)
-        # traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (classweight_Target/bckgsum_weighted)
-
     if weights=='BalanceNonWeighted':
         print('HHsum_unweighted= ' , HHsum_unweighted)
 
-        print('bbggsum_unweighted= ' , bbggsum_unweighted)
+        print('BBggsum_unweighted= ' , BBggsum_unweighted)
 
         print('DiPhotonsum_unweighted= ', DiPhotonsum_unweighted)
         print('QCDsum_unweighted= ', QCDsum_unweighted)
         print('TTGsJetssum_unweighted= ', TTGsJetssum_unweighted)
 
-        # print('Hggsum_unweighted= ' , Hggsum_unweighted)
-        # print('GJetsum_unweighted= ', GJetsum_unweighted)
-        # print('DYsum_unweighted= ', DYsum_unweighted)
-        # print('WGsJetssum_unweighted= ', WGsJetssum_unweighted)
-        # print('WWsum_unweighted= ', WWsum_unweighted)
         print('bckgsum_unweighted= ', bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = 1.
 
-        traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/bckgsum_unweighted)
+        traindataset.loc[traindataset['process_ID']=='bbgg', ['classweight']] = (classweight_Target/BBggsum_unweighted)
 
         traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_unweighted)
@@ -1024,7 +1013,10 @@ def main():
                 # nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
                 nClasses = 3 ##-- HH, H, Bkg (continuum)
                 # model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
-                model = new_model5(num_variables, nClasses, optimizer='Nadam', activation='relu', loss='categorical_crossentropy', dropout_rate=0.1,  init_mode='glorot_normal', learn_rate=learn_rate)
+                model = MultiClassifier_ModelVarLayerV1(num_variables, nClasses, learn_rate=learn_rate, nlayers=args.nlayers)
+                model.summary()
+                #
+                # model = new_model5(num_variables, nClasses, optimizer=optimizer, activation=activation, loss='categorical_crossentropy', dropout_rate=dropout_rate,  init_mode='glorot_normal', learn_rate=learn_rate)
             else:
                 model = new_model(num_variables, learn_rate=learn_rate)
 
@@ -1112,11 +1104,31 @@ def main():
             exec(executeLine)
 
     if(args.MultiClass):
-        print("[train-DNN.py#983]....")
+        print("[train-DNN.py#1089] ROC computation for multi-class")
         Plotter.ROC_MultiClassifier(model, X_test, Y_test, X_train, Y_train)
     else:
         Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
         Plotter.save_plots(dir=plots_dir, filename='ROC.png')
         Plotter.save_plots(dir=plots_dir, filename='ROC.pdf')
+
+    print("="*51)
+    print("\tSHAP computation: GradientExplainer")
+    print("="*51)
+    # e = shap.DeepExplainer(model, X_train[:400, ])
+    e = shap.GradientExplainer(model, X_train[:400, ])
+    # shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough
+    shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
+    shap_values = e.shap_values(X_test[:400, ])
+    Plotter.plot_dot(title="GradientExplainer_sigmoid_y0", x=X_test[:400, ], shap_values=shap_values, column_headers=column_headers)
+    Plotter.plot_dot_bar(title="GradientExplainer_Bar_sigmoid_y0", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
+    Plotter.plot_dot_bar_all(title="GradientExplainer_Bar_sigmoid_y0_all", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
+
+    print("\tSHAP computation: DeepExplainer")
+    e = shap.DeepExplainer(model, X_train[:400, ])
+    shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
+    shap_values = e.shap_values(X_test[:400, ])
+    Plotter.plot_dot(title="DeepExplainer_sigmoid_y0", x=X_test[:400, ], shap_values=shap_values, column_headers=column_headers)
+    Plotter.plot_dot_bar(title="DeepExplainer_Bar_sigmoid_y0", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
+    Plotter.plot_dot_bar_all(title="DeepExplainer_Bar_sigmoid_y0_all", x=X_test[:400,], shap_values=shap_values, column_headers=column_headers)
 
 main()
