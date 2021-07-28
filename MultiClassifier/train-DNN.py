@@ -69,6 +69,10 @@ from sklearn.preprocessing import MinMaxScaler
 #from sklearn.utils import class_weight
 from sklearn.metrics import log_loss
 from sklearn.metrics import roc_curve
+from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
+from sklearn.metrics import multilabel_confusion_matrix
+import seaborn as sns
+
 from os import environ
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 from tensorflow.keras.callbacks import EarlyStopping
@@ -505,12 +509,16 @@ def main():
     parser.add_argument("-d", "--dropout_rate", type=float, default=0.2, help = "dropout rate to be used. Default value is 0.2")
     parser.add_argument('-lr', '--lr', dest='learn_rate', help='Learn rate', default=0.1, type=float)
     parser.add_argument("-nlayers", "--nlayers", type=int, default=1, help = "Number of hidden layers in the network")
+    parser.add_argument("-ModelToUse", "--ModelToUse", type=str, default="FH_ANv5", help = "Name of optimizer to train with")
 
     parser.add_argument("--LessSamples", action="store_true", help = "Run with minimal backgrounds, signals in order to quickly test network configuration")
     parser.add_argument("--MultiClass", action="store_true", help = "Train a multiclassifier network")
     parser.add_argument("--Website", type = str, default = "", help = "Output files to website path")
     parser.add_argument("--SaveOutput", action="store_true", help = "Save X and Y train and test arrays as pickle files")
     parser.add_argument("--useKinWeight", action="store_true", help = "Use kinematic MC weights, derived to improve Data / MC agreement, in training")
+    parser.add_argument("-BBggsum_weightFactor", "--BBggsum_weightFactor", type = float, default = 1., help = "Factor to adjust bbgg class weights")
+    parser.add_argument("-ClassWeightTargetDividedby", "--ClassWeightTargetDividedby", type = float, default = 1., help = "Factor to adjust bbgg class weights")
+
     parser.add_argument("--VHToGGClassWeightFactor", type = float, default = 1., help = "Factor to adjust Hgg class weights")
     parser.add_argument("--ttHJetToGGClassWeightFactor", type = float, default = 1., help = "Factor to adjust Hgg class weights")
     parser.add_argument("--BkgClassWeightFactor", type = float, default = 1., help = "Factor to adjust bkg class weights")
@@ -539,8 +547,9 @@ def main():
     print("optimizer                     : %s"%(args.optimizer))
     print("activation                    : %s"%(args.activation))
     print("dropout_rate                  : %s"%(args.dropout_rate))
-    print("learn_rate                     : %s"%(args.learn_rate))
+    print("learn_rate                    : %s"%(args.learn_rate))
     print("useKinWeight                  : %s"%(args.useKinWeight))
+    print("--BBggsum_weightFactor        : %s"%(args.BBggsum_weightFactor))
     print("--VHToGGClassWeightFactor     : %s"%(args.VHToGGClassWeightFactor))
     print("--ttHJetToGGClassWeightFactor : %s"%(args.ttHJetToGGClassWeightFactor))
     print("--BkgClassWeightFactor        : %s"%(args.BkgClassWeightFactor))
@@ -551,6 +560,7 @@ def main():
     do_model_fit = args.train_model
     suffix = args.suffix
     useKinWeight = args.useKinWeight
+    BBggsum_weightFactor = args.BBggsum_weightFactor
     VHToGGClassWeightFactor = args.VHToGGClassWeightFactor
     ttHJetToGGClassWeightFactor = args.ttHJetToGGClassWeightFactor
     BkgClassWeightFactor = args.BkgClassWeightFactor
@@ -750,6 +760,7 @@ def main():
     # VHToGGsum_weighted = (VHToGGsum_weighted * VHToGGClassWeightFactor) / 2.
     # VHToGGsum_weighted = (VHToGGsum_weighted * VHToGGClassWeightFactor)
     # ttHJetToGGsum_weighted = ttHJetToGGsum_weighted * ttHJetToGGClassWeightFactor
+    BBggsum_weighted = BBggsum_weighted*BBggsum_weightFactor
 
     # bckgsum_weighted = bckgsum_weighted * BkgClassWeightFactor
 
@@ -812,7 +823,9 @@ def main():
         print('bckgsum_weighted = ', bckgsum_weighted)
 
         ##-- Choose class weight scale target
-        classweight_Target = HHsum_unweighted
+        classweight_Target = HHsum_unweighted/args.ClassWeightTargetDividedby # nClasses = 3.0
+        # classweight_Target = HHsum_unweighted/3.0 # nClasses = 3.0
+        # classweight_Target = HHsum_unweighted
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = classweight_Target/HHsum_weighted
 
         if(args.MultiClass):
@@ -885,12 +898,6 @@ def main():
         traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']] = (classweight_Target/bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='QCD', ['classweight']] = (classweight_Target/bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-
-        # traindataset.loc[traindataset['process_ID']=='DY', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-        # traindataset.loc[traindataset['process_ID']=='GJet', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-        # traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-        # traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (classweight_Target/bckgsum_unweighted)
-        # traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (classweight_Target/bckgsum_unweighted)
 
     # Remove column headers that aren't input variables
     # nonTrainingVariables = ['weight', 'weight_NLO_SM', 'kinWeight', 'unweighted', 'target', 'key', 'classweight', 'process_ID']
@@ -1012,11 +1019,27 @@ def main():
             if(args.MultiClass):
                 # nClasses = 2 ##-- HH, H or maybe HH, (H + continuum)
                 nClasses = 3 ##-- HH, H, Bkg (continuum)
-                # model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
-                model = MultiClassifier_ModelVarLayerV1(num_variables, nClasses, learn_rate=learn_rate, nlayers=args.nlayers)
-                model.summary()
-                #
+                if args.ModelToUse == "SL":
+                    model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
+                elif args.ModelToUse == "FH_ANv5":
+                    model = new_model5(num_variables, nClasses, learn_rate=learn_rate)
+                elif args.ModelToUse == "FH_ANv5_NoBN":
+                    model = new_model6(num_variables, nClasses, learn_rate=learn_rate)
+                elif args.ModelToUse == "SimpleV1":
+                    model = ANN_model(num_variables, nClasses, learn_rate=learn_rate)
+                elif args.ModelToUse == "SimpleV2":
+                    model = ANN_model2(num_variables, nClasses, learn_rate=learn_rate)
+                else:
+                    model = MultiClassifier_Model(num_variables, nClasses, learn_rate=learn_rate)
+                # model = MultiClassifier_ModelVarLayerV1(num_variables, nClasses, learn_rate=learn_rate, nlayers=args.nlayers)
+                # model = MultiClassifier_ModelVarLayerV2(num_variables, nClasses, learn_rate=learn_rate, nlayers=args.nlayers)
+                # model = MultiClassifier_ModelVarLayerV3(num_variables, nClasses, learn_rate=learn_rate, nlayers=args.nlayers)
                 # model = new_model5(num_variables, nClasses, optimizer=optimizer, activation=activation, loss='categorical_crossentropy', dropout_rate=dropout_rate,  init_mode='glorot_normal', learn_rate=learn_rate)
+                print("Model used: {}".format(args.ModelToUse))
+                print("Model Summary:")
+                print("="*51)
+                model.summary()
+                print("="*51)
             else:
                 model = new_model(num_variables, learn_rate=learn_rate)
 
@@ -1052,12 +1075,76 @@ def main():
     result_probs = model.predict(np.array(X_train))
     # result_classes = model.predict_classes(np.array(X_train))
     # model.predict_classes is going to be deprecated.. so one should use np.argmax
-    result_classes = np.argmax(model.predict(np.array(X_train)), axis=-1)
+    # result_classes = np.argmax(model.predict(np.array(X_train)), axis=-1)
+    result_classes = np.argmax(result_probs, axis=1)
 
     # Node probabilities for testing sample events
     result_probs_test = model.predict(np.array(X_test))
     #result_classes_test = model.predict_classes(np.array(X_test))
+    result_classes_test = np.argmax(result_probs_test, axis=1)
 
+    y_pred = model.predict(X_test)
+    y_pred = np.argmax(y_pred, axis=1)
+    y_test = np.argmax(Y_test, axis=1)
+    cm = confusion_matrix(y_test, y_pred)
+    print("Confusion matrix:")
+    print("=================")
+    print(cm)
+    print("=================")
+
+    plt.figure(figsize=(5,5))
+    sns.heatmap(cm, annot=True, fmt="d")
+    # plt.title('Confusion matrix @{:.2f}'.format(p))
+    plt.title('Confusion matrix')
+    plt.ylabel('Actual label')
+    plt.xlabel('Predicted label')
+    plt.tight_layout()
+    plt.savefig(plots_dir + "/confusion_matrix.png")
+
+    print("multilabel_confusion_matrix matrix:")
+    print("=================")
+    print(multilabel_confusion_matrix(y_test, y_pred))
+    print("=================")
+    print("f1_score")
+    print("f1 score (micro)     : {}".format(f1_score(y_test, y_pred,average='micro')))
+    print("f1 score (macro)     : {}".format(f1_score(y_test, y_pred,average='macro')))
+    print("f1 score (weighted)  : {}".format(f1_score(y_test, y_pred,average='weighted')))
+    # print("f1 score (samples)   : {}".format(f1_score(y_test, y_pred,average='samples'))) # ERROR
+
+    print("f1_score")
+    print("f1 score (micro, labels=0,1)     : {}".format(f1_score(y_test, y_pred,labels=[0,1],average='micro')))
+    print("f1 score (macro, labels=0,1)     : {}".format(f1_score(y_test, y_pred,labels=[0,1],average='macro')))
+    print("f1 score (weighted, labels=0,1)  : {}".format(f1_score(y_test, y_pred,labels=[0,1],average='weighted')))
+
+    print("f1_score")
+    print("f1 score (micro, labels=0,1,2)     : {}".format(f1_score(y_test, y_pred,labels=[0,1,2],average='micro')))
+    print("f1 score (macro, labels=0,1,2)     : {}".format(f1_score(y_test, y_pred,labels=[0,1,2],average='macro')))
+    print("f1 score (weighted, labels=0,1,2)  : {}".format(f1_score(y_test, y_pred,labels=[0,1,2],average='weighted')))
+
+    print("f1_score")
+    print("f1 score (micro, labels=0)     : {}".format(f1_score(y_test, y_pred,labels=[0],average='micro')))
+    print("f1 score (macro, labels=0)     : {}".format(f1_score(y_test, y_pred,labels=[0],average='macro')))
+    print("f1 score (weighted, labels=0)  : {}".format(f1_score(y_test, y_pred,labels=[0],average='weighted')))
+
+    print("f1_score")
+    print("f1 score (micro, labels=1)     : {}".format(f1_score(y_test, y_pred,labels=[1],average='micro')))
+    print("f1 score (macro, labels=1)     : {}".format(f1_score(y_test, y_pred,labels=[1],average='macro')))
+    print("f1 score (weighted, labels=1)  : {}".format(f1_score(y_test, y_pred,labels=[1],average='weighted')))
+
+    print("f1_score")
+    print("f1 score (micro, labels=2)     : {}".format(f1_score(y_test, y_pred,labels=[2],average='micro')))
+    print("f1 score (macro, labels=2)     : {}".format(f1_score(y_test, y_pred,labels=[2],average='macro')))
+    print("f1 score (weighted, labels=2)  : {}".format(f1_score(y_test, y_pred,labels=[2],average='weighted')))
+    print("=================")
+
+    print("multilabel_confusion_matrix matrix using sample_weight:")
+    print("=================")
+    print(multilabel_confusion_matrix(y_test, y_pred))
+    #
+    # Plot multilabel confusion matrix: https://stackoverflow.com/a/62723359
+    #
+    # print(multilabel_confusion_matrix(y_test, y_pred, sample_weight=trainingweights)) # size issues with sample weights.
+    print("=================")
     # Store model in file
     model_output_name = os.path.join(output_directory,'model.h5')
     model.save(model_output_name)

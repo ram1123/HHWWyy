@@ -2,7 +2,7 @@
 # @Author: Ram Krishna Sharma
 # @Date:   2021-04-06 12:05:34
 # @Last Modified by:   Ram Krishna Sharma
-# @Last Modified time: 2021-07-21
+# @Last Modified time: 2021-07-27
 
 ##
 ## USER MODIFIED STRING
@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dirTag', dest='dirTag', help='name of directory tag', default="TEST_args", type=str)
 parser.add_argument('-j', '--jobName', dest='jobName', help='Slurm job name', default="DNN", type=str)
 parser.add_argument('-s', '--scan', dest='scan', help='do RandomizedSearchCV scan or not', default=False, type=bool)
+parser.add_argument('-isTrain', '--isTrain', dest='isTrain', help='train model or not?', default=1, type=int)
 parser.add_argument('-w', '--weights', dest='weights', help='weights to use', default='BalanceYields', type=str,choices=['BalanceYields','BalanceNonWeighted'])
 parser.add_argument('-dlr', '--dynamic_lr', dest='dynamic_lr', help='vary learn rate with epoch', default=False, type=bool)
 parser.add_argument('-lr', '--lr', dest='learnRate', help='Learn rate', default=0.1, type=float)
@@ -29,6 +30,9 @@ parser.add_argument("-dropoutLayer", "--dropoutLayer", type=int, default=0, help
 parser.add_argument('-json', '--json', dest='json', help='input variable json file', default='input_variables.json', type=str)
 parser.add_argument('-c', dest="cutString", type=str, default="( 1.>0. )", help="cut selection to apply")
 parser.add_argument("-nlayers", "--nlayers", type=int, default=1, help = "Number of hidden layers in the network")
+parser.add_argument("-ModelToUse", "--ModelToUse", type=str, default="FH_ANv5", help = "Name of optimizer to train with")
+parser.add_argument("-BBggsum_weightFactor", "--BBggsum_weightFactor", type = float, default = 1., help = "Factor to adjust bbgg class weights")
+parser.add_argument("-ClassWeightTargetDividedby", "--ClassWeightTargetDividedby", type = float, default = 1., help = "Factor to adjust bbgg class weights")
 
 args = parser.parse_args()
 
@@ -42,7 +46,7 @@ LogDirPath = MacroPath + "/HHWWyyDNN_"+dirTag+"_BalanceYields/"
   # CommandToRun = "python train-BinaryDNN.py -t 1 -s "+dirTag+" -p 1 -g 1 -r 0"  # Scan using RandomizedSearchCV
 # else:
   # CommandToRun = "python train-DNN.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput "
-CommandToRun = "python train-DNN.py       -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ -t 1 -s "+dirTag+" --MultiClass --SaveOutput "+" -lr "+str(args.learnRate)+" -e "+str(args.epochs)+" -b "+str(args.batch_size)+" -o "+args.optimizer + " -j "+args.json + " -a " + str(args.activation) + " -d " + str(args.dropout_rate) + " -nlayers " + str(args.nlayers) + " -c '" + args.cutString+"'"
+CommandToRun = "python train-DNN.py       -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ -t "+ str(args.isTrain)+" -s "+dirTag+" --MultiClass --SaveOutput "+" -lr "+str(args.learnRate)+" -e "+str(args.epochs)+" -b "+str(args.batch_size)+" -o "+args.optimizer + " -j "+args.json + " -a " + str(args.activation) + " -d " + str(args.dropout_rate) + " -nlayers " + str(args.nlayers) + " -ModelToUse " + args.ModelToUse + " -ClassWeightTargetDividedby " + str(args.ClassWeightTargetDividedby)+ "  -BBggsum_weightFactor " + str(args.BBggsum_weightFactor) + " -c '" + args.cutString+"'"
 # CommandToRun = "python train-DNN_all.py -t 1 -s "+dirTag+" -i /hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/DNN_MoreVar_v5_BScoreBugFix/ --MultiClass --SaveOutput"
 
 #===================================================================

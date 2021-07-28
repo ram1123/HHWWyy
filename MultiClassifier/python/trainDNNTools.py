@@ -101,6 +101,56 @@ def MultiClassifier_Model(num_variables, nClasses, learn_rate=0.001):
     model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
     return model
 
+def ANN_model(
+                   num_variables,
+                   nClasses,
+                   optimizer='Nadam',
+                   activation='relu',
+                   loss='categorical_crossentropy',
+                   dropout_rate=0.2,
+                   init_mode='glorot_normal',
+                   learn_rate=0.001,
+                   metrics=METRICS
+                   ):
+    # strategy = tf.distribute.MirroredStrategy()
+    # with strategy.scope():
+    model = Sequential()
+    model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer=init_mode,activation=activation))
+    # model.add(Dense(num_variables,kernel_initializer=init_mode,activation=activation))
+    model.add(Dense(nClasses, activation='softmax'))
+    if optimizer=='Adam':
+        model.compile(loss=loss,optimizer=Adam(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Nadam':
+        model.compile(loss=loss,optimizer=Nadam(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adamax':
+        model.compile(loss=loss,optimizer=Adamax(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adadelta':
+        model.compile(loss=loss,optimizer=Adadelta(lr=learn_rate),metrics=['acc'])
+    if optimizer=='Adagrad':
+        model.compile(loss=loss,optimizer=Adagrad(lr=learn_rate),metrics=['acc'])
+    return model
+
+def ANN_model2(
+                   num_variables,
+                   nClasses,
+                   optimizer='Nadam',
+                   activation='relu',
+                   loss='categorical_crossentropy',
+                   dropout_rate=0.2,
+                   init_mode='glorot_normal',
+                   learn_rate=0.001,
+                   metrics=METRICS
+                   ):
+    # strategy = tf.distribute.MirroredStrategy()
+    # with strategy.scope():
+    model = Sequential()
+    model.add(Dense(num_variables,input_dim=num_variables,kernel_initializer=init_mode,activation=activation))
+    model.add(Dense(30,activation='relu'))
+    model.add(Dense(15,activation='relu'))
+    model.add(Dense(nClasses, activation='softmax'))
+    model.compile(loss=loss,optimizer=Nadam(lr=learn_rate),metrics=['acc'])
+    return model
+
 def MultiClassifier_Modelv1(num_variables, nClasses, learn_rate=0.001):
     model = Sequential()
     model.add(Dense(64, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
@@ -172,6 +222,25 @@ def MultiClassifier_ModelVarLayerV2(num_variables, nClasses, learn_rate=0.001, n
     model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
     return model
 
+def MultiClassifier_ModelVarLayerV3(num_variables, nClasses, learn_rate=0.001, nlayers = 1):
+    model = Sequential()
+    neuronsHiddenLayer = []
+    neuronsInputLayer = 256
+    for x in range(0,20):
+        if ((((neuronsInputLayer+1)*2)/3) <= nClasses): break
+        neuronsHiddenLayer.append((((neuronsInputLayer+1)*2)/3))
+        neuronsInputLayer = neuronsHiddenLayer[x]
+    model.add(Dense(neuronsHiddenLayer[0], input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    for x in range(1,nlayers):
+        model.add(Dense(neuronsHiddenLayer[x],kernel_regularizer=regularizers.l2(0.01)))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+    model.add(Dense(nClasses, activation='softmax')) ##-- softmax for mutually exclusive classification
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='categorical_crossentropy',optimizer=optimizer,metrics=['acc']) ##--  Categorical instead of binary crossentropy
+    return model
 
 def new_model5(
                num_variables,

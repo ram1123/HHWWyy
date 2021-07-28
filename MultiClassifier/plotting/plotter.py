@@ -219,6 +219,7 @@ class plotter(object):
         return
 
     def conf_matrix(self, y_true, y_predicted, EventWeights_, norm=' '):
+        print("Computing confusion matrix...")
         y_true = pandas.Series(y_true, name='truth')
         y_predicted = pandas.Series(y_predicted, name='prediction')
         EventWeights_ = pandas.Series(EventWeights_, name='eventweights')
@@ -242,9 +243,8 @@ class plotter(object):
         sns.heatmap(self.matrix, **opts)
         label_dict = {
             0 : 'HH',
-            1 : 'yyjets',
-            2 : 'GJets',
-            3 : 'DY'
+            1 : 'bbgg',
+            2 : 'bckg',
         }
         for ax in (self.ax1,):
             #Shift tick location to bin centre
@@ -320,7 +320,7 @@ class plotter(object):
         datasets = ["test", "train"]
         # datasets = ["test"]
 
-        print("DEBUG: test...")
+        # print("DEBUG: test...")
 
         ##-- Two plots: Class one test + train, Class two test + train
         for i in range(n_classes):
