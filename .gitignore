@@ -1,6 +1,9 @@
 plotting/__init__.pyc
 plotting/plotter.pyc
 *.tex
+command*.sh
 __pycache__/
 slurm_submit*.sh
 HHWWyyDNN_*/
+input_variables*/
+TrainingJuly_*/
