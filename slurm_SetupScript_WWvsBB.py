@@ -41,7 +41,7 @@ MacroPath = '/hpcfs/bes/mlgpu/sharma/ML_GPU/HHWWyy/'
 # LogDirPath = "/hpcfs/bes/mlgpu/sharma/ML_GPU/HHWWyy/HHWWBBDNN_binary_"+dirTag+"_BalanceYields/"
 LogDirPath = MacroPath + "/HHWWBBDNN_binary_"+dirTag+"_"+args.weights+"/"
 
-print ("args.scan: ",args.scan)
+# print ("args.scan: ",args.scan)
 if args.scan:
   CommandToRun = "python train-BinaryDNN_WWvsBB.py -t "+ str(args.isTrain) + " -ModelToUse "+ str(args.ModelToUse) +" -s "+dirTag+" -p 1 -g 0 -r 1"  # Scan using RandomizedSearchCV
   # CommandToRun = "python train-BinaryDNN_WWvsBB.py -t "+ str(args.isTrain) + " -ModelToUse "+ str(args.ModelToUse) +" -s "+dirTag+" -p 1 -g 1 -r 0"  # Scan using RandomizedSearchCV

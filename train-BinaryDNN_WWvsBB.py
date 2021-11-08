@@ -127,10 +127,11 @@ def load_data(inputPath,variables,criteria):
             sampleNames=key
             subdir_name = 'Signal'
             fileNames = [
+                'GluGluToHHTo2B2G_node_cHHH1_2017'
             # 'GluGluToHHTo2G4Q_node_cHHH1_2017'
             # 'GluGluToHHTo2G2ZTo2G4Q_node_cHHH1_2017'
-            'GluGluToHHTo2G4Q_node_1_2017',
-            'GluGluToHHTo2G4Q_node_2_2017',
+            # 'GluGluToHHTo2G4Q_node_1_2017',
+            # 'GluGluToHHTo2G4Q_node_2_2017',
             # 'GluGluToHHTo2G4Q_node_3_2017',
             # 'GluGluToHHTo2G4Q_node_4_2017',
             # 'GluGluToHHTo2G4Q_node_5_2017',
@@ -159,7 +160,8 @@ def load_data(inputPath,variables,criteria):
                 # 'GluGluHToGG_M125_TuneCP5_13TeV',
                 # 'VHToGG_M125_13TeV',
 
-                'GluGluToHHTo2B2G_node_cHHH1_2017'
+                # 'GluGluToHHTo2B2G_node_cHHH1_2017'
+                'GluGluToHHTo2G2ZTo2G4Q_node_cHHH1_2017'
                 # 'datadrivenQCD_v2'
             ]
             target=0
