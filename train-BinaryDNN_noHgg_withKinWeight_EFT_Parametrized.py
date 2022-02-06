@@ -61,18 +61,42 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
 
-import shap
-from root_numpy import root2array, tree2array
+# import shap
+# from root_numpy import root2array, tree2array
 from plotting.plotter import plotter
 # import pydotplus as pydot
 import matplotlib as mpl
 mpl.rcParams['figure.figsize'] = (12, 10)
+
+# For fixing memory issue with GPU
+# tf.config.gpu_options.set_per_process_memory_fraction(0.9)
+# gpus = tf.config.experimental.list_physical_devices('GPU')
+# if gpus:
+#   try:
+#     # Currently, memory growth needs to be the same across GPUs
+#     for gpu in gpus:
+#       tf.config.experimental.set_memory_growth(gpu, True)
+#     logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+#     print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+#   except RuntimeError as e:
+#     # Memory growth must be set before GPUs have been initialized
+#     print(e)
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 seed = 7
 np.random.seed(7)
 rng = np.random.RandomState(31337)
-
+METRICS = [
+      keras.metrics.TruePositives(name='tp'),
+      keras.metrics.FalsePositives(name='fp'),
+      keras.metrics.TrueNegatives(name='tn'),
+      keras.metrics.FalseNegatives(name='fn'),
+      keras.metrics.BinaryAccuracy(name='accuracy'),
+      keras.metrics.Precision(name='precision'),
+      keras.metrics.Recall(name='recall'),
+      keras.metrics.AUC(name='auc'),
+      keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
+]
 def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch'):
     eos_dir = '/eos/user/%s ' % (directory)
     eos_cmd = 'eos ' + prepend + ' ls ' + eos_dir
@@ -539,6 +563,34 @@ def new_model(num_variables,learn_rate=0.001):
     model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=['acc'])
     return model
 
+def new_model_chuw(
+               num_variables,
+               optimizer='Nadam',
+               activation='relu',
+               loss='binary_crossentropy',
+               dropout_rate=0.2,
+               init_mode='glorot_normal',
+               learn_rate=0.001,
+               metrics=METRICS
+               ):
+    model = Sequential()
+    model.add(Dense(10, input_dim=num_variables,kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    #model.add(Dense(16,kernel_regularizer=regularizers.l2(0.01)))
+    #model.add(BatchNormalization())
+    #model.add(Activation('relu'))
+    model.add(Dense(10))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(Dense(4))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(Dense(1, activation="sigmoid"))
+    optimizer=Nadam(lr=learn_rate)
+    model.compile(loss='binary_crossentropy',optimizer=optimizer,metrics=metrics)
+    return model
+
 def check_dir(dir):
     if not os.path.exists(dir):
         print('mkdir: ', dir)
@@ -573,7 +625,7 @@ def main():
         batch_size=200
     if weights == 'BalanceYields':
         learn_rate = 0.0001
-        epochs = 600
+        epochs = 400
         batch_size=500
         #epochs = 10
         #batch_size=200
@@ -716,7 +768,8 @@ def main():
         traindataset.loc[traindataset['process_ID']=='TTGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='WGsJets', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='WW', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
-
+        # print (traindataset.loc[traindataset['process_ID']=='HH', ['classweight']])
+        # print (traindataset.loc[traindataset['process_ID']=='DiPhoton', ['classweight']])
     if weights=='BalanceNonWeighted':
         print('HHsum_unweighted= ' , HHsum_unweighted)
         print('Hggsum_unweighted= ' , Hggsum_unweighted)
@@ -740,6 +793,7 @@ def main():
 
 
     # Remove column headers that aren't input variables
+    # sys.exit()
     training_columns = column_headers[:-6]
     print('<train-DNN> Training features: ', training_columns)
 
@@ -827,7 +881,7 @@ def main():
             # Define model for analysis
             early_stopping_monitor = EarlyStopping(patience=100, monitor='val_loss', min_delta=0.0001, verbose=1)
             #model = baseline_model(num_variables, learn_rate=learn_rate)
-            model = new_model(num_variables, learn_rate=learn_rate)
+            model = new_model_chuw(num_variables, learn_rate=learn_rate)
 
             # Fit the model
             # Batch size = examples before updating weights (larger = faster training)
@@ -841,14 +895,27 @@ def main():
             #acc_progress_filename = 'DNN_acc_wrt_epoch'
             #Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.png')
             #Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.pdf')
+            Plotter.plot_training_progress_acc(histories, labels)
+            acc_progress_filename = 'DNN_acc_wrt_epoch'
+            Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.png')
+            Plotter.save_plots(dir=plots_dir, filename=acc_progress_filename+'.pdf')
 
             Plotter.history_plot(history, label='loss')
             Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
             Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')
 
-            Plotter.history_plot(history, label='acc')
-            Plotter.save_plots(dir=plots_dir, filename='history_accuracy.png')
-            Plotter.save_plots(dir=plots_dir, filename='history_accuracy.pdf')
+            Plotter.plot_metrics(history)
+            all_metrics = 'all_metrics'
+            Plotter.save_plots(dir=plots_dir, filename=all_metrics+'.png')
+            Plotter.save_plots(dir=plots_dir, filename=all_metrics+'.pdf')
+
+            # Plotter.history_plot(history, label='loss')
+            # Plotter.save_plots(dir=plots_dir, filename='history_loss.png')
+            # Plotter.save_plots(dir=plots_dir, filename='history_loss.pdf')
+
+            # Plotter.history_plot(history, label='acc')
+            # Plotter.save_plots(dir=plots_dir, filename='history_accuracy.png')
+            # Plotter.save_plots(dir=plots_dir, filename='history_accuracy.pdf')
     else:
         model_name = os.path.join(output_directory,'model.h5')
         model = load_trained_model(model_name)
@@ -886,6 +953,9 @@ def main():
     # Initialise output directory.
     Plotter.plots_directory = plots_dir
     Plotter.output_directory = output_directory
+
+    # Make overfitting plots of output nodes
+    Plotter.binary_overfitting(model, Y_train, Y_test, result_probs, result_probs_test, plots_dir, train_weights, test_weights)
 
     Plotter.ROC(model, X_test, Y_test, X_train, Y_train)
     Plotter.save_plots(dir=plots_dir, filename='ROC.png')
