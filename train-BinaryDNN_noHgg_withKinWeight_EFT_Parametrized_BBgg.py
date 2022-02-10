@@ -68,7 +68,9 @@ from plotting.plotter import plotter
 import matplotlib as mpl
 mpl.rcParams['figure.figsize'] = (12, 10)
 
-DEBUG = True
+print("Start of the program...")
+print("Loded all the required modules...")
+
 # For fixing memory issue with GPU
 # tf.config.gpu_options.set_per_process_memory_fraction(0.9)
 # gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -82,8 +84,9 @@ DEBUG = True
 #   except RuntimeError as e:
 #     # Memory growth must be set before GPUs have been initialized
 #     print(e)
-colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
+DEBUG = True
+colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 seed = 7
 np.random.seed(7)
 rng = np.random.RandomState(31337)
@@ -98,6 +101,7 @@ METRICS = [
       keras.metrics.AUC(name='auc'),
       keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
 ]
+
 def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch'):
     eos_dir = '/eos/user/%s ' % (directory)
     eos_cmd = 'eos ' + prepend + ' ls ' + eos_dir
@@ -117,6 +121,37 @@ def load_data(inputPath,variables,criteria):
             sampleNames=key
             subdir_name = '/hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/EFT_TrainingSamples/'
             fileNames = [
+                'Node01_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node02_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node03_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node04_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node05_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node06_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node07_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node08_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node09_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node10_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node11_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node12_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node13_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node14_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node15_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node16_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node17_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node18_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node19_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017',
+                'Node20_GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017'
+            ]
+            target=1
+        else:
+            sampleNames = key
+            subdir_name = '/hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/EFT_TrainingSamples/'
+            fileNames = [
+                'DiPhotonJetsBox_MGG-80toInf_13TeV',
+                'TTGG_0Jets_TuneCP5_13TeV',
+                'TTGJets_TuneCP5_13TeV',
+                'datadrivenQCD_v2',
+
                 'Node01_GluGluToHHTo2G4Q_node_cHHH1_2017',
                 'Node02_GluGluToHHTo2G4Q_node_cHHH1_2017',
                 'Node03_GluGluToHHTo2G4Q_node_cHHH1_2017',
@@ -138,61 +173,6 @@ def load_data(inputPath,variables,criteria):
                 'Node19_GluGluToHHTo2G4Q_node_cHHH1_2017',
                 'Node20_GluGluToHHTo2G4Q_node_cHHH1_2017'
             ]
-            target=1
-        else:
-            sampleNames = key
-            subdir_name = '/hpcfs/bes/mlgpu/sharma/ML_GPU/Samples/EFT_TrainingSamples/'
-            fileNames = [
-                'DiPhotonJetsBox_MGG-80toInf_13TeV',
-
-                'TTGG_0Jets_TuneCP5_13TeV',
-                'TTGJets_TuneCP5_13TeV',
-
-                # 'ttHJetToGG_M125_13TeV',
-                # 'VBFHToGG_M125_13TeV',
-                # 'GluGluHToGG_M125_TuneCP5_13TeV',
-                # 'VHToGG_M125_13TeV',
-
-                # 'GluGluToHHTo2B2G_node_cHHH1_2017',
-                'datadrivenQCD_v2'
-        #     #'DiPhotonJetsBox_M40_80_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'DiPhotonJetsBox_MGG-80toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'GJet_Pt-20to40_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-        #     #'GJet_Pt-20toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'GJet_Pt-40toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'QCD_Pt-30to40_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'QCD_Pt-30toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-   	    # #'QCD_Pt-40toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'DYJetsToLL_M-50_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'TTGG_0Jets_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'TTGJets_TuneCP5_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-   	    # #'TTJets_HT-600to800_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'TTJets_HT-800to1200_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'TTJets_HT-1200to2500_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'TTJets_HT-2500toInf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'ttWJets_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'TTJets_TuneCP5_extra_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'W1JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'W1JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'W1JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'W1JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'W1JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'W2JetsToLNu_LHEWpT_0-50_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'W2JetsToLNu_LHEWpT_50-150_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'W2JetsToLNu_LHEWpT_150-250_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'W2JetsToLNu_LHEWpT_250-400_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'W2JetsToLNu_LHEWpT_400-inf_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'W3JetsToLNu_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # #'W4JetsToLNu_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'WGGJets_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    # 'WGJJToLNu_EWK_QCD_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    #'WWTo1L1Nu2Q_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-	    #'WW_TuneCP5_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-            #'GluGluHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-            #'VBFHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-            #'VHToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar',
-            #'ttHJetToGG_2017_HHWWggTag_0_MoreVars_kinWeight_noHgg_v3_NodeVar'
-            ]
             target=0
 
         for filen in fileNames:
@@ -204,6 +184,9 @@ def load_data(inputPath,variables,criteria):
                 process_ID = 'bbgg'
             elif 'GluGluToHHTo2G4Q_node_cHHH1_2017' in filen:
                 treename=['tagsDumper/trees/GluGluToHHTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
+                process_ID = 'WWgg'
+            elif 'GluGluToHHTo2B2G_node_cHHH1_TuneCP5_PSWeights_13TeV_2017' in filen:
+                treename=['tagsDumper/trees/GluGluToHHTo2B2G_node_cHHH1_13TeV_HHWWggTag_1']
                 process_ID = 'HH'
             elif 'GluGluToHHTo2G2ZTo2G4Q_node_cHHH1_2017' in filen:
                 treename=['tagsDumper/trees/GluGluToHHTo2G2ZTo2G4Q_node_cHHH1_13TeV_HHWWggTag_1']
@@ -475,6 +458,7 @@ def load_data(inputPath,variables,criteria):
                 process_ID = 'QCD'
 
             fileName = os.path.join(subdir_name,filen)
+            if DEBUG: print("\n================================")
             if DEBUG: print("fileName: {}".format(fileName))
             #filename_fullpath = inputPath+"/"+fileName+".root"
             filename_fullpath = fileName+".root"
@@ -570,7 +554,7 @@ def new_model(num_variables,learn_rate=0.001):
     return model
 
 def new_model_chuw(
-               num_variables,
+               num_variables = 60,
                optimizer='Nadam',
                activation='relu',
                loss='binary_crossentropy',
@@ -611,7 +595,45 @@ def main():
     parser.add_argument('-s', '--suff', dest='suffix', help='Option to choose suffix for training', default='', type=str)
     parser.add_argument('-p', '--para', dest='hyp_param_scan', help='Option to run hyper-parameter scan', default=0, type=int)
     parser.add_argument('-i', '--inputs_file_path', dest='inputs_file_path', help='Path to directory containing directories \'Bkgs\' and \'Signal\' which contain background and signal ntuples respectively.', default='', type=str)
+
+    parser.add_argument("-e", "--epochs", type=int, default=10, help = "Number of epochs to train")
+    parser.add_argument("-b", "--batch_size", type=int, default=200, help = "Number of batch_size to train")
+    parser.add_argument('-lr', '--lr', dest='learnRate', help='Learn rate', default=0.0001, type=float)
+
     args = parser.parse_args()
+
+    print('#---------------------------------------')
+    print('#    Print all input arguments         #')
+    print('#---------------------------------------')
+    print("DEBUG            = {}".format(DEBUG))
+    # print('load_dataset     = %s'%args.load_dataset)
+    print('train_model      = %s'%args.train_model)
+    print('suffix           = %s'%args.suffix)
+    print('inputs_file_path = %s'%args.inputs_file_path)
+    # print('weights          = %s'%args.weights)
+    # print('classweight      = %s'%args.classweight)
+    # print('sampleweight     = %s'%args.sampleweight)
+    # print('Input Var json   = %s'%args.json)
+    print('')
+    # print('dynamic LearnRate= %s'%args.dynamic_lr)
+    print('Learn rate       = %s'%args.learnRate)
+    print('epochs           = %s'%args.epochs)
+    print('batch_size       = %s'%args.batch_size)
+    # print('optimizer        = %s'%args.optimizer)
+    # print('activation       = %s'%args.activation)
+    # print('dropout_rate     = %s'%args.dropout_rate)
+    print('')
+    # print('hyp_param_scan   = %s'%args.hyp_param_scan)
+    # print('GridSearch       = %s'%args.GridSearch)
+    # print('RandomSearch     = %s'%args.RandomSearch)
+    print('')
+    # print('nHiddenLayer     = %s'%args.nHiddenLayer)
+    # print('dropoutLayer     = %s'%args.dropoutLayer)
+    print('#---------------------------------------')
+
+
+
+
     do_model_fit = args.train_model
     suffix = args.suffix
 
@@ -626,13 +648,13 @@ def main():
     validation_split=0.25
     # hyper-parameter scan results
     if weights == 'BalanceNonWeighted':
-        learn_rate = 0.0005
-        epochs = 200
-        batch_size=200
+        learn_rate = args.learnRate
+        epochs = args.epochs
+        batch_size= args.batch_size
     if weights == 'BalanceYields':
-        learn_rate = 0.0001
-        epochs = 400
-        batch_size=500
+        learn_rate = args.learnRate
+        epochs = args.epochs
+        batch_size= args.batch_size
         #epochs = 10
         #batch_size=200
 
@@ -718,6 +740,7 @@ def main():
     weights_for_TTGsJets = traindataset.loc[traindataset['process_ID']=='TTGsJets', 'NewWeight']
     weights_for_WGsJets = traindataset.loc[traindataset['process_ID']=='WGsJets', 'NewWeight']
     weights_for_WW = traindataset.loc[traindataset['process_ID']=='WW', 'NewWeight']
+    weights_for_WWgg = traindataset.loc[traindataset['process_ID']=='WWgg', 'NewWeight']
 
     HHsum_weighted= sum(weights_for_HH)
     Hggsum_weighted= sum(weights_for_Hgg)
@@ -728,7 +751,8 @@ def main():
     TTGsJetssum_weighted= sum(weights_for_TTGsJets)
     WGsJetssum_weighted= sum(weights_for_WGsJets)
     WWsum_weighted= sum(weights_for_WW)
-    bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted
+    WWggsum_weighted= sum(weights_for_WWgg)
+    bckgsum_weighted = Hggsum_weighted + DiPhotonsum_weighted + GJetsum_weighted + QCDsum_weighted + DYsum_weighted + TTGsJetssum_weighted + WGsJetssum_weighted + WWsum_weighted + WWggsum_weighted
 
     nevents_for_HH = traindataset.loc[traindataset['process_ID']=='HH', 'unweighted']
     nevents_for_Hgg = traindataset.loc[traindataset['process_ID']=='Hgg', 'unweighted']
@@ -764,6 +788,7 @@ def main():
         print('TTGsJetssum_weighted= ', TTGsJetssum_weighted)
         print('WGsJetssum_weighted= ', WGsJetssum_weighted)
         print('WWsum_weighted= ', WWsum_weighted)
+        print('{0:22} = {1:11}'.format('WWggsum_weighted ',WWggsum_weighted))
         print('bckgsum_weighted= ', bckgsum_weighted)
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = HHsum_unweighted/HHsum_weighted
         traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/bckgsum_weighted)
@@ -786,6 +811,7 @@ def main():
         print('TTGsJetssum_unweighted= ', TTGsJetssum_unweighted)
         print('WGsJetssum_unweighted= ', WGsJetssum_unweighted)
         print('WWsum_unweighted= ', WWsum_unweighted)
+        print('WWggsum_unweighted = ', WWggsum_unweighted)
         print('bckgsum_unweighted= ', bckgsum_unweighted)
         traindataset.loc[traindataset['process_ID']=='HH', ['classweight']] = 1.
         traindataset.loc[traindataset['process_ID']=='Hgg', ['classweight']] = (HHsum_unweighted/bckgsum_unweighted)
@@ -862,19 +888,19 @@ def main():
 
         if hyp_param_scan == 1:
             print('Begin at local time: ', time.localtime())
-            hyp_param_scan_name = 'hyp_param_scan_results.txt'
+            hyp_param_scan_name = output_directory+'/hyp_param_scan_results.txt'
             hyp_param_scan_results = open(hyp_param_scan_name,'a')
             time_str = str(time.localtime())+'\n'
             hyp_param_scan_results.write(time_str)
             hyp_param_scan_results.write(weights)
             learn_rates=[0.00001, 0.0001]
-            epochs = [150,200]
-            batch_size = [400,500]
+            epochs = [100, 150, 200, 300]
+            batch_size = [200, 250, 300, 400]
             param_grid = dict(learn_rate=learn_rates,epochs=epochs,batch_size=batch_size)
-            model = KerasClassifier(build_fn=gscv_model,verbose=0)
+            model = KerasClassifier(build_fn=new_model_chuw,verbose=1)
             grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
             grid_result = grid.fit(X_train,Y_train,shuffle=True,sample_weight=trainingweights)
-            print("Best score: %f , best params: %s" % (grid_result.best_score_,grid_result.best_params_))
+            print("\nBest score: %f , best params: %s" % (grid_result.best_score_,grid_result.best_params_))
             hyp_param_scan_results.write("Best score: %f , best params: %s\n" %(grid_result.best_score_,grid_result.best_params_))
             means = grid_result.cv_results_['mean_test_score']
             stds = grid_result.cv_results_['std_test_score']
@@ -885,7 +911,9 @@ def main():
             exit()
         else:
             # Define model for analysis
-            early_stopping_monitor = EarlyStopping(patience=50, monitor='val_loss', min_delta=0.0001, verbose=0)
+            early_stopping_monitor = EarlyStopping(patience=100, monitor='val_loss', min_delta=0.0001, verbose=0)
+            csv_logger = CSVLogger('%s/training.log'%(output_directory), separator=',', append=True) # callbacks
+
             #model = baseline_model(num_variables, learn_rate=learn_rate)
             model = new_model_chuw(num_variables, learn_rate=learn_rate)
 
@@ -893,7 +921,7 @@ def main():
             # Batch size = examples before updating weights (larger = faster training)
             # Epoch = One pass over data (useful for periodic logging and evaluation)
             #class_weights = np.array(class_weight.compute_class_weight('balanced',np.unique(Y_train),Y_train))
-            history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=2,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor])
+            history = model.fit(X_train,Y_train,validation_split=validation_split,epochs=epochs,batch_size=batch_size,verbose=2,shuffle=True,sample_weight=trainingweights,callbacks=[early_stopping_monitor,csv_logger])
             histories.append(history)
             labels.append(optimizer)
             # Make plot of loss function evolution
