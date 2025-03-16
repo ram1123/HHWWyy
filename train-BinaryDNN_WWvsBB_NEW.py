@@ -42,6 +42,29 @@ np.random.seed(7)
 
 CURRENT_DATETIME = datetime.now()
 
+def GenerateGitPatchAndLog(logFileName,GitPatchName):
+    #CMSSWDirPath = os.environ['CMSSW_BASE']
+    #CMSSWRel = CMSSWDirPath.split("/")[-1]
+
+    os.system('git diff > '+GitPatchName)
+
+    outScript = open(logFileName,"w");
+    #outScript.write('\nCMSSW Version used: '+CMSSWRel+'\n')
+    #outScript.write('\nCurrent directory path: '+CMSSWDirPath+'\n')
+    outScript.close()
+
+    os.system('echo -e "\n\n============\n== Latest commit summary \n\n" >> '+logFileName )
+    os.system("git log -1 --pretty=tformat:' Commit: %h %n Date: %ad %n Relative time: %ar %n Commit Message: %s' >> "+logFileName )
+    os.system('echo -e "\n\n============\n" >> '+logFileName )
+    os.system('git log -1 --format="SHA: %H" >> '+logFileName )
+
+def load_data_from_EOS(self, directory, mask='', prepend='root://eosuser.cern.ch'):
+    eos_dir = '/eos/user/%s ' % (directory)
+    eos_cmd = 'eos ' + prepend + ' ls ' + eos_dir
+    print(eos_cmd)
+    #out = commands.getoutput(eos_cmd)
+    return
+
 # Ensure directory exists
 def ensure_directory_exists(directory):
     if not os.path.exists(directory):
@@ -127,15 +150,23 @@ def preprocess_data(data):
 # Metrics for evaluation
 METRICS = [
     tf.keras.metrics.CategoricalAccuracy(name='accuracy'),
+    tf.keras.metrics.TruePositives(name='tp'),
+    tf.keras.metrics.FalsePositives(name='fp'),
+    tf.keras.metrics.TrueNegatives(name='tn'),
+    tf.keras.metrics.FalseNegatives(name='fn'),
+    tf.keras.metrics.BinaryAccuracy(name='accuracy'),
+    tf.keras.metrics.Precision(name='precision'),
+    tf.keras.metrics.Recall(name='recall'),
     tf.keras.metrics.AUC(name='auc'),
+    tf.keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
 ]
 
 # Custom learning rate scheduler
 def custom_learning_rate_scheduler(epoch, lr):
     if epoch < 10:
-        return 0.01
+        return 0.001
     else:
-        return float(lr * tf.math.exp(-0.05 * (epoch - 10)))
+        return float(lr * tf.math.exp(-0.005 * (epoch - 10)))
 
 # Build and compile a multi-class DNN model
 def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001):
@@ -154,7 +185,7 @@ def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001
 
 # Train the model with early stopping
 def train_model(model, X_train, Y_train, X_val, Y_val, batch_size, epochs, output_dir, class_weight=None):
-    early_stopping = EarlyStopping(patience=10, monitor='val_loss', restore_best_weights=True)
+    early_stopping = EarlyStopping(patience=21, monitor='val_loss', restore_best_weights=True)
     csv_logger = CSVLogger(os.path.join(output_dir, 'training.log'))
     lr_scheduler = LearningRateScheduler(custom_learning_rate_scheduler)
 
@@ -186,9 +217,9 @@ def main():
     parser.add_argument('--inputPath', required=True, help="Path to input ROOT files.")
     parser.add_argument('--output_dir', required=True, help="Directory to save outputs.")
     parser.add_argument('--job_name', type=str, default="DNN", help="Job name.")
-    parser.add_argument('--epochs', type=int, default=50, help="Number of epochs.")
+    parser.add_argument('--epochs', type=int, default=100, help="Number of epochs.")
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size.")
-    parser.add_argument('--learn_rate', type=float, default=0.001, help="Learning rate.")
+    parser.add_argument('--learn_rate', type=float, default=0.0001, help="Learning rate.")
     parser.add_argument('--num_events', type=int, default=1000, help="Number of events to load.")
     parser.add_argument('--json', type=str, default='input_variables.json', help="Input variable JSON file.")
 
@@ -298,6 +329,9 @@ def main():
 
     # Classifier output
     plot_classifier_output(model=model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, output_dir=plots_dir)
+
+    # Plot DNN network architecture
+    tf.keras.utils.plot_model(model, to_file=os.path.join(plots_dir, "model.png"), show_shapes=True)
 
 if __name__ == "__main__":
     main()
