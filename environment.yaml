@@ -1,0 +1,16 @@
+name: hzz_2l2nu-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - ipykernel
+  - tensorflow
+  - scikit-learn
+  - pandas
+  - matplotlib
+  - numpy
+  - seaborn
+  - uproot
+  - scikeras
+  - shap

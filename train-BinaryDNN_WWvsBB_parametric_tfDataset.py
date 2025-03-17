@@ -60,9 +60,11 @@ class PerMassMetricsCallback(Callback):
         """
         super().__init__()
         self.model_reference = model_reference  # Store model reference
-        self.val_dataset = val_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)  # Ensure batched & optimized dataset
+        # self.val_dataset = val_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)  # Ensure batched & optimized dataset
+        # Instead of re-batching, create an unbatched copy for filtering.
         self.masses = masses
-        self.output_dir = output_dir
+        self.val_dataset_unbatched = val_dataset.unbatch().prefetch(tf.data.AUTOTUNE)        self.output_dir = output_dir
+        self.batch_size = batch_size
         self.history = {mass: {'accuracy': [], 'loss': []} for mass in masses}
 
     def filter_by_mass1(self, dataset, mass_value, batch_size=32):
@@ -72,7 +74,7 @@ class PerMassMetricsCallback(Callback):
         # ✅ Fix: Extract mass from the last column (correct per-sample filtering)
         for f,l in dataset.take(1):
             tf.print("Mass Value in Sample:", f[-1])  # Debugging
-        #filtered_dataset = dataset.filter(lambda x, y: tf.equal(x[:, -1], mass_value))  
+        #filtered_dataset = dataset.filter(lambda x, y: tf.equal(x[:, -1], mass_value))
         filtered_dataset = dataset.filter(lambda x, y: tf.equal(tf.squeeze(x[-1]), mass_value))
 
         # ✅ Fix: Ensure consistent batch sizes (drop incomplete batches)
@@ -115,8 +117,8 @@ class PerMassMetricsCallback(Callback):
         print(f"\nEvaluating per mass metrics after epoch {epoch + 1}...")
 
         for mass in self.masses:
-            mass_dataset = self.filter_by_mass(self.val_dataset, mass)
-
+            # mass_dataset = self.filter_by_mass(self.val_dataset, mass)
+            mass_dataset = self.filter_by_mass(self.val_dataset_unbatched, mass)
             # Safely check if dataset is empty
             try:
                 next(iter(mass_dataset.take(1)))  # Try fetching one batch
@@ -248,13 +250,26 @@ def load_data(inputPath, variables, num_events, csv_path, metadata_path, signal_
     return data
 
 # Ensure input data is numeric and clean
-def preprocess_data(data):
+def preprocess_data(data, exclude_columns=[]):
+    """
+    Added exclude columns to avoid scaling the mass column, as
+    it is a categorical variable and should not be scaled.
+    """
     # Replace NaN or infinite values with a default (e.g., 0 or mean)
     data = data.replace([np.inf, -np.inf], np.nan)  # Replace infinities with NaN
     data = data.fillna(0)  # Replace NaN with 0 (or use column mean if needed)
-    data = pd.DataFrame(scaler.fit_transform(data), columns=data.columns)
-    return data.astype('float32')  # Ensure all values are float32
-
+    if exclude_columns:
+        cols_to_scale = [col for col in data.columns if col not in exclude_columns]
+        # Scale only the columns present in cols_to_scale
+        scaled_df = pd.DataFrame(scaler.fit_transform(data[cols_to_scale]), columns=cols_to_scale)
+        # Reattach the excluded columns with their original values
+        for col in exclude_columns:
+            scaled_df[col] = data[col].values
+        # Reorder columns to match the original order
+        scaled_df = scaled_df[data.columns]
+    else:
+        scaled_df = pd.DataFrame(scaler.fit_transform(data), columns=data.columns)
+    return scaled_df.astype('float32')
 
 # Metrics for evaluation
 METRICS = [
@@ -296,12 +311,12 @@ def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001
         Dense(64, activation=activation),
         Dense(3, activation="softmax")  # 3-class classification
     ])
-    
+
     # Compile the model
-    model.compile(optimizer=Nadam(learning_rate=learn_rate), 
-                  loss='categorical_crossentropy', 
+    model.compile(optimizer=Nadam(learning_rate=learn_rate),
+                  loss='categorical_crossentropy',
                   metrics=METRICS)
-    
+
     return model
 
 
@@ -357,7 +372,7 @@ def train_model_with_mass_metrics(model, train_dataset, val_dataset, batch_size,
     """
     masses = np.unique(signal_masses)
     #per_mass_callback = PerMassMetricsCallback(model, X_val, Y_val, masses, output_dir)
-    per_mass_callback =PerMassMetricsCallback(model, val_dataset, masses, output_dir) 
+    per_mass_callback =PerMassMetricsCallback(model, val_dataset, masses, output_dir)
 
     # Train the model
     history = model.fit(
@@ -373,7 +388,7 @@ def train_model_with_mass_metrics(model, train_dataset, val_dataset, batch_size,
     # Generate plots for per mass metrics
     per_mass_callback.plot_metrics()
     #per_mass_callback =1
-    
+
     return history, per_mass_callback
 
 # Plot confusion matrix
@@ -392,6 +407,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train a multi-class DNN for ggH/VBF/background classification.")
     parser.add_argument('--inputPath', required=True, help="Path to input ROOT files.")
     parser.add_argument('--output_dir', required=True, help="Directory to save outputs.")
+    parser.add_argument('--retrain', action='store_true', help="Retrain the model.")
     parser.add_argument('--job_name', type=str, default="DNN", help="Job name.")
     parser.add_argument('--epochs', type=int, default=50, help="Number of epochs.")
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size.")
@@ -450,11 +466,11 @@ def main():
     #print("Mass in validation data (last column of X_val):", X_val[:, -1])
 
     # Preprocess training and validation data
-    X_train = preprocess_data(pd.DataFrame(X_train)).values
-    X_val = preprocess_data(pd.DataFrame(X_val)).values
-    Y_train = preprocess_data(pd.DataFrame(Y_train)).values
-    Y_val = preprocess_data(pd.DataFrame(Y_val)).values
-
+    X_train = preprocess_data(pd.DataFrame(X_train, columns=feature_columns), exclude_columns=["mass"]).values
+    X_val = preprocess_data(pd.DataFrame(X_val, columns=feature_columns), exclude_columns=["mass"]).values
+    # Do not scale Y since they are one values; We just need to ensure they are float32
+    Y_train = pd.DataFrame(Y_train).astype('float32').values
+    Y_val = pd.DataFrame(Y_val).astype('float32').values
 
     # Convert Pandas DataFrames to Tensors
     X_train_tensor = tf.convert_to_tensor(X_train, dtype=tf.float32)
@@ -475,7 +491,7 @@ def main():
     ensure_directory_exists(plots_dir)
 
     # Check if the model already exists
-    if os.path.exists(model_path):
+    if os.path.exists(model_path) and (not args.retrain):
         print(f"Trained model already exists at {model_path}. Loading the model...")
         model = load_model(model_path)
     else:
@@ -503,9 +519,8 @@ def main():
         # Evaluate and save model
         model.save(model_path)
         print(f"Saved model to: {model_path}")
-    """
     for mass in signal_masses:
-        print(f"Generating validation plfots for mass: {mass}")
+        print(f"Generating validation plots for mass: {mass}")
 
         # Filter data by mass
         mass_filter = X_val[:, -1] == mass  # The last column is the 'mass'
@@ -541,6 +556,6 @@ def main():
 
         # Classification Report
         plot_classifier_output(model, X_train, Y_train, X_val_mass_features, Y_val_mass, output_dir=plots_dir, mass=mass)
-    """
+
 if __name__ == "__main__":
     main()
