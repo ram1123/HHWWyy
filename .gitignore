@@ -1,3 +1,7 @@
+*.h5
+*.csv
+*.json
+*.png
 *.pyc
 core.*
 *.out

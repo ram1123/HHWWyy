@@ -63,7 +63,8 @@ class PerMassMetricsCallback(Callback):
         # self.val_dataset = val_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)  # Ensure batched & optimized dataset
         # Instead of re-batching, create an unbatched copy for filtering.
         self.masses = masses
-        self.val_dataset_unbatched = val_dataset.unbatch().prefetch(tf.data.AUTOTUNE)        self.output_dir = output_dir
+        self.val_dataset_unbatched = val_dataset.unbatch().prefetch(tf.data.AUTOTUNE)
+        self.output_dir = output_dir
         self.batch_size = batch_size
         self.history = {mass: {'accuracy': [], 'loss': []} for mass in masses}
 
@@ -71,13 +72,13 @@ class PerMassMetricsCallback(Callback):
         def filter_fn(x, y):
             tf.print("Mass Value in Sample:", x[-1])  # Debugging
             return tf.equal(x[-1], mass_value)  # Ensure x[-1] is the mass column
-        # ✅ Fix: Extract mass from the last column (correct per-sample filtering)
+        # Fix: Extract mass from the last column (correct per-sample filtering)
         for f,l in dataset.take(1):
             tf.print("Mass Value in Sample:", f[-1])  # Debugging
         #filtered_dataset = dataset.filter(lambda x, y: tf.equal(x[:, -1], mass_value))
         filtered_dataset = dataset.filter(lambda x, y: tf.equal(tf.squeeze(x[-1]), mass_value))
 
-        # ✅ Fix: Ensure consistent batch sizes (drop incomplete batches)
+        # Fix: Ensure consistent batch sizes (drop incomplete batches)
         filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
         # Apply filtering sample-wise
         #filtered_dataset = dataset.filter(lambda x, y: tf.squeeze(filter_fn(x, y)))
@@ -91,10 +92,10 @@ class PerMassMetricsCallback(Callback):
         def filter_fn(x, y):
             return tf.equal(tf.squeeze(x[-1]), tf.cast(mass_value, tf.float32))
 
-        # ✅ Apply filtering sample-wise (ensuring scalar bool output)
+        # Apply filtering sample-wise (ensuring scalar bool output)
         filtered_dataset = dataset.filter(lambda x, y: tf.reshape(filter_fn(x, y), []))
 
-        # ✅ Ensure batch size consistency to avoid shape mismatches
+        # Ensure batch size consistency to avoid shape mismatches
         filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
 
         return filtered_dataset
@@ -105,10 +106,10 @@ class PerMassMetricsCallback(Callback):
             mass_column = x[..., -1]  # Correctly extracts mass for each row
             return tf.equal(mass_column, tf.cast(mass_value, tf.float32))  # Element-wise comparison
 
-        # ✅ Corrected: Apply filtering **per sample** and ensure scalar boolean output
+        # Corrected: Apply filtering **per sample** and ensure scalar boolean output
         filtered_dataset = dataset.filter(lambda x, y: tf.equal(tf.squeeze(x[..., -1]), tf.cast(mass_value, tf.float32)))
 
-        # ✅ Ensure all batches have the same shape to avoid "Cannot batch tensors with different shapes" errors
+        # Ensure all batches have the same shape to avoid "Cannot batch tensors with different shapes" errors
         filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
 
         return filtered_dataset
@@ -171,7 +172,7 @@ def ensure_directory_exists(directory):
         os.makedirs(directory)
 
 # Load data from ROOT files into a DataFrame
-def load_data(inputPath, variables, num_events, csv_path, metadata_path, signal_masses):
+def load_data(inputPath, variables, num_events, csv_path, metadata_path):
     """
     Load data for ggH, VBF, and Background processes. Background mass is randomly sampled from the signal mass range.
 
@@ -180,7 +181,6 @@ def load_data(inputPath, variables, num_events, csv_path, metadata_path, signal_
     :param num_events: Number of events to read.
     :param csv_path: Path to save/load the CSV file.
     :param metadata_path: Path to save/load the metadata (variable list).
-    :param signal_masses: List of signal masses for ggH and VBF.
     :return: Pandas DataFrame containing the dataset.
     """
     csv_exists = os.path.exists(csv_path)
@@ -205,10 +205,10 @@ def load_data(inputPath, variables, num_events, csv_path, metadata_path, signal_
     data = pd.DataFrame(columns=variables + ['target', 'process_ID', 'classweight', 'mass'])
     for key in keys:
         if key == 'ggh':
-            fileNames = [f"GluGluHToZZTo2L2Nu_M{mass}_TuneCP5_13TeV_powheg2_JHUGenV7011_pythia8" for mass in signal_masses]
+            fileNames = ["GluGluHToZZTo2L2Nu_M125_TuneCP5_13TeV_powheg2_minloHJJ_JHUGenV735_pythia8"]
             target = 0  # ggH
         elif key == 'vbf':
-            fileNames = [f"VBF_HToZZTo2L2Nu_M{mass}_TuneCP5_13TeV_powheg2_JHUGenV7011_pythia8" for mass in signal_masses]
+            fileNames = ["VBF_HToZZTo2L2Nu_M125_TuneCP5_withDipoleRecoil_13TeV_powheg2_JHUGenV735_pythia8"]
             target = 1  # VBF
         else:  # Background
             fileNames = ["ZZTo2L2Nu"]
@@ -226,17 +226,9 @@ def load_data(inputPath, variables, num_events, csv_path, metadata_path, signal_
             chunk_df['process_ID'] = process_ID
             chunk_df['classweight'] = 1.0
 
-            mass = None
-            # Assign mass for signals
-            if key != 'bkg':
-                mass = int(filen.split("_M")[1].split("_")[0])  # Extract mass from filename for signals
-                chunk_df['mass'] = mass
-            else:  # Assign mass for background randomly sampled from signal masses
-                chunk_df['mass'] = np.random.choice(signal_masses, size=len(chunk_df))
-
             data = pd.concat([data, chunk_df], ignore_index=True)
 
-            print(f"Loaded {len(chunk_df)} events for process {key} with mass {mass}")
+            print(f"Loaded {len(chunk_df)} events for process {key}")
 
     # Save DataFrame to CSV
     print(f"Saving DataFrame to CSV: {csv_path}")
@@ -434,9 +426,8 @@ def main():
     metadata_path = os.path.join(args.output_dir, "variables_metadata.json")
     model_path = os.path.join(args.output_dir, "model.h5")
 
-    # Load data
-    signal_masses = [300, 400, 500, 1500, 2000, 3000]
-    data = load_data(args.inputPath, variables, args.num_events, csv_path=csv_path, metadata_path=metadata_path, signal_masses=signal_masses)
+    # Load data from ROOT files or CSV
+    data = load_data(args.inputPath, variables, args.num_events, csv_path=csv_path, metadata_path=metadata_path)
 
     # print dataframe info
     #print(data.info())
@@ -445,46 +436,26 @@ def main():
     #print(data.head())
     #print(data['mass'].unique())
 
-    # Define feature columns explicitly (these are the features used for training)
-    feature_columns = [col for col in variables if col not in ['target', 'process_ID', 'classweight', 'mass']]
 
-    # add mass to the feature columns
-    feature_columns.append('mass')
-
+    # Define feature columns for simple multiclass DNN (exclude 'mass')
+    feature_columns = [col for col in variables if col not in ['target', 'process_ID', 'classweight']]
     print(f"Feature columns: {feature_columns}")
 
-    # Extract only the features used for training
+    # Extract only the features used for training (no mass)
     X = data[feature_columns].values
     Y = pd.get_dummies(data['target']).values  # One-hot encoding for multi-class
 
     # Split into train and validation sets
     X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=7)
 
-    # Debugging: Ensure 'mass' is in X
     print("X_train shape:", X_train.shape)
     print("X_val shape:", X_val.shape)
-    #print("Mass in validation data (last column of X_val):", X_val[:, -1])
 
-    # Preprocess training and validation data
-    X_train = preprocess_data(pd.DataFrame(X_train, columns=feature_columns), exclude_columns=["mass"]).values
-    X_val = preprocess_data(pd.DataFrame(X_val, columns=feature_columns), exclude_columns=["mass"]).values
-    # Do not scale Y since they are one values; We just need to ensure they are float32
+    # Preprocess training and validation data (no exclude_columns needed)
+    X_train = preprocess_data(pd.DataFrame(X_train, columns=feature_columns)).values
+    X_val = preprocess_data(pd.DataFrame(X_val, columns=feature_columns)).values
     Y_train = pd.DataFrame(Y_train).astype('float32').values
     Y_val = pd.DataFrame(Y_val).astype('float32').values
-
-    # Convert Pandas DataFrames to Tensors
-    X_train_tensor = tf.convert_to_tensor(X_train, dtype=tf.float32)
-    Y_train_tensor = tf.convert_to_tensor(Y_train, dtype=tf.int32)  # Use int32 for classification
-    X_val_tensor = tf.convert_to_tensor(X_val, dtype=tf.float32)
-    Y_val_tensor = tf.convert_to_tensor(Y_val, dtype=tf.int32)  # Use int32 for classification
-
-    # Create tf.data.Dataset
-    train_dataset = tf.data.Dataset.from_tensor_slices((X_train_tensor, Y_train_tensor))
-    val_dataset = tf.data.Dataset.from_tensor_slices((X_val_tensor, Y_val_tensor))
-
-    BATCH_SIZE = 32  # Adjust as needed
-    train_dataset = train_dataset.batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
-    val_dataset = val_dataset.batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 
     # Create plots directory
     plots_dir = os.path.join(args.output_dir, "plots")
@@ -495,67 +466,34 @@ def main():
         print(f"Trained model already exists at {model_path}. Loading the model...")
         model = load_model(model_path)
     else:
-        # Build model
+        # Build model (input_dim is now len(feature_columns))
         model = build_model(input_dim=X_train.shape[1], learn_rate=args.learn_rate)
 
-        # # Train model
-        # history = train_model(
-        #     model, X_train, Y_train, X_val, Y_val,
-        #     batch_size=args.batch_size,
-        #     epochs=args.epochs,
-        #     output_dir=args.output_dir
-        # )
-
-        # Train model with per mass metrics
-        history, per_mass_callback = train_model_with_mass_metrics(
-            #model, X_train, Y_train, X_val, Y_val,
-            model, train_dataset, val_dataset,
+        # Train model (simple multiclass DNN)
+        history = train_model(
+            model, X_train, Y_train, X_val, Y_val,
             batch_size=args.batch_size,
             epochs=args.epochs,
-            output_dir=plots_dir,
-            signal_masses=signal_masses
+            output_dir=args.output_dir
         )
 
         # Evaluate and save model
         model.save(model_path)
         print(f"Saved model to: {model_path}")
-    for mass in signal_masses:
-        print(f"Generating validation plots for mass: {mass}")
 
-        # Filter data by mass
-        mass_filter = X_val[:, -1] == mass  # The last column is the 'mass'
-        X_val_mass = X_val[mass_filter]
+    # Evaluate and plot on validation set (no mass filtering)
+    y_pred = np.argmax(model.predict(X_val), axis=1)
+    y_true = np.argmax(Y_val, axis=1)
+    y_score = model.predict(X_val)
 
+    # ROC Curve
+    plot_roc_curve_multiclass(Y_val, y_score, plots_dir, labels=["ggH", "VBF", "Background"], mass=None)
 
-        print(f"len(feature_columns) = {len(feature_columns)}")
-        # Extract only the features used for training
-        X_val_mass_features = X_val_mass[:, :len(feature_columns)]  # Use only the first N columns corresponding to feature_columns
-        Y_val_mass = Y_val[mass_filter]
+    # Confusion Matrix
+    plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggH", "VBF", "Background"], mass=None)
 
-        if len(X_val_mass) == 0:
-            print(f"No validation data found for mass: {mass}")
-            continue
-
-        # print feature_columns
-        print(f"Feature columns: {feature_columns}")
-
-        # 	2.	Validate X_train.shape and X_val_mass_features.shape to ensure they match input_dim=14.
-        print("X_train shape:", X_train.shape)
-        print("X_val_mass_features shape:", X_val_mass_features.shape)
-
-        # Evaluate model
-        y_pred_mass = np.argmax(model.predict(X_val_mass_features), axis=1)  # Exclude 'mass' from prediction input
-        y_true_mass = np.argmax(Y_val_mass, axis=1)
-        y_score_mass = model.predict(X_val_mass_features)
-
-        # ROC Curve
-        plot_roc_curve_multiclass(Y_val_mass, y_score_mass, plots_dir, labels=["ggH", "VBF", "Background"], mass=mass)
-
-        # Confusion Matrix
-        plot_confusion_matrix_multiclass(Y_val_mass, y_pred_mass, plots_dir, labels=["ggH", "VBF", "Background"], mass=mass)
-
-        # Classification Report
-        plot_classifier_output(model, X_train, Y_train, X_val_mass_features, Y_val_mass, output_dir=plots_dir, mass=mass)
+    # Classification Report
+    plot_classifier_output(model, X_train, Y_train, X_val, Y_val, output_dir=plots_dir, mass=None)
 
 if __name__ == "__main__":
     main()
