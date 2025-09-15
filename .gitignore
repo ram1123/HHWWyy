@@ -2,6 +2,8 @@
 *.csv
 *.json
 *.png
+*.npz
+*.keras
 *.pyc
 core.*
 *.out

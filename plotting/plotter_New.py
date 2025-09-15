@@ -2,18 +2,65 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 from sklearn.metrics import confusion_matrix
-import shap
 from sklearn.metrics import roc_curve, auc
 from sklearn.preprocessing import label_binarize
 import numpy as np
 
-def plot_correlation_matrix(data, output_dir):
-    plt.figure(figsize=(12, 10))
-    corr_matrix = data.corr()
-    sns.heatmap(corr_matrix, annot=False, cmap='coolwarm')
-    plt.title("Correlation Matrix")
+# import shap
+
+# def plot_correlation_matrix(data, output_dir):
+#     plt.figure(figsize=(12, 10))
+#     corr_matrix = data.corr()
+#     sns.heatmap(corr_matrix, annot=False, cmap='coolwarm')
+#     plt.title("Correlation Matrix")
+#     plt.tight_layout()
+#     plt.savefig(os.path.join(output_dir, "correlation_plot.png"))
+
+
+def plot_correlation_matrix(data, output_dir, feature_names=None, max_rows=100_000):
+    """
+    Plots a correlation heatmap.
+    - data: np.ndarray [n, d] or pandas.DataFrame with d features
+    - output_dir: where to save PNG
+    - feature_names: optional list of d names (used if data is ndarray)
+    - max_rows: cap rows to speed up corr() on huge datasets
+    """
+    import os
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # convert to DataFrame if needed
+    if isinstance(data, np.ndarray):
+        d = data.shape[1]
+        if feature_names is None or len(feature_names) != d:
+            feature_names = [f"f{i}" for i in range(d)]
+        df = pd.DataFrame(data, columns=feature_names)
+    else:
+        df = data.copy()
+
+    # keep only finite values
+    df = df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    # row cap to speed up on very large samples
+    if len(df) > max_rows:
+        df = df.sample(n=max_rows, random_state=7)
+
+    corr = df.corr(numeric_only=True)
+
+    plt.figure(figsize=(0.6 * corr.shape[0] + 6, 0.6 * corr.shape[0] + 6))
+    sns.heatmap(corr, annot=False, cmap='coolwarm', square=True,
+                cbar_kws={'shrink': 0.8})
+    plt.title("Feature Correlation Matrix")
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "correlation_plot.png"))
+    out = os.path.join(output_dir, "correlation_plot.png")
+    plt.savefig(out, dpi=150)
+    plt.close()
+    print(f"Saved correlation matrix to: {out}")
+
 
 def plot_training_progress(history, output_dir):
     # Plot accuracy progression
@@ -36,13 +83,41 @@ def plot_training_progress(history, output_dir):
     plt.legend(loc='upper right')
     plt.savefig(os.path.join(output_dir, "history_loss.png"))
 
+import pandas as pd
 
-def plot_metrics(history, output_dir):
+def plot_training_progress_from_csv(csv_path, output_dir):
+    if not os.path.exists(csv_path):
+        print(f"[warn] no training log at {csv_path}; skipping training plots")
+        return
+    df = pd.read_csv(csv_path)
+    plt.figure(); plt.plot(df['accuracy'], label='Train Accuracy')
+    if 'val_accuracy' in df: plt.plot(df['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy'); plt.ylabel('Accuracy'); plt.xlabel('Epoch')
+    plt.legend(loc='upper left'); plt.savefig(os.path.join(output_dir, "DNN_acc_wrt_epoch.png")); plt.close()
+
+    plt.figure(); plt.plot(df['loss'], label='Train Loss')
+    if 'val_loss' in df: plt.plot(df['val_loss'], label='Validation Loss')
+    plt.title('Model Loss'); plt.ylabel('Loss'); plt.xlabel('Epoch')
+    plt.legend(loc='upper right'); plt.savefig(os.path.join(output_dir, "history_loss.png")); plt.close()
+
+
+def plot_metrics(history, output_dir, csv_path=None):
     plt.figure(figsize=(12, 8))
-    for metric in ['precision', 'recall', 'auc']:
-        if metric in history.history:
-            plt.plot(history.history[metric], label=f'Train {metric}')
-            plt.plot(history.history[f'val_{metric}'], label=f'Validation {metric}')
+    if history is not None:
+        for metric in ['precision', 'recall', 'auc']:
+            if metric in history.history:
+                plt.plot(history.history[metric], label=f'Train {metric}')
+                plt.plot(history.history[f'val_{metric}'], label=f'Validation {metric}')
+    elif csv_path is not None and os.path.exists(csv_path):
+        df = pd.read_csv(csv_path)
+        for metric in ['precision', 'recall', 'auc']:
+            if metric in df.columns:
+                plt.plot(df[metric], label=f'Train {metric}')
+            if f'val_{metric}' in df.columns:
+                plt.plot(df[f'val_{metric}'], label=f'Validation {metric}')
+    else:
+        print("No history or valid CSV log provided for plotting metrics.")
+        return
     plt.title('Model Metrics')
     plt.ylabel('Value')
     plt.xlabel('Epoch')
@@ -88,38 +163,57 @@ def plot_confusion_matrix_multiclass(y_true, y_pred, output_dir, labels, mass = 
     plt.close()
 
 
-def plot_roc_curve_multiclass(y_true, y_score, output_dir, labels, mass = None):
-    y_true_binarized = label_binarize(y_true, classes=range(len(labels)))
-    plt.figure(figsize=(8, 6))
-
-    # For each class, compute the ROC curve and AUC
+def plot_roc_curve_multiclass(y_true, y_score, output_dir, labels, mass=None):
+    y_true_b = label_binarize(y_true if y_true.ndim==1 else np.argmax(y_true,1),
+                              classes=range(len(labels)))
+    y_score = np.nan_to_num(y_score, nan=0.0, posinf=0.0, neginf=0.0)  # <—
+    plt.figure(figsize=(8,6))
     for i, label in enumerate(labels):
-        fpr, tpr, _ = roc_curve(y_true_binarized[:, i], y_score[:, i])
+        if not np.isfinite(y_score[:, i]).all():
+            continue
+        if y_true_b[:, i].sum() == 0:  # no positives for this class
+            continue
+        fpr, tpr, _ = roc_curve(y_true_b[:, i], y_score[:, i])
         roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, lw=2, label=f"Class {label} (AUC = {roc_auc:.2f})")
+        plt.plot(fpr, tpr, lw=2, label=f"{label} (AUC={roc_auc:.2f})")
+    plt.plot([0,1],[0,1],'--',lw=2,color='gray')
+    plt.xlabel('FPR'); plt.ylabel('TPR'); plt.title('ROC Curve'); plt.legend(loc='lower right')
+    os.makedirs(output_dir, exist_ok=True)
+    plt.tight_layout(); plt.savefig(os.path.join(output_dir, "roc_curve_multiclass.png")); plt.close()
 
-    # Plot diagonal line
-    plt.plot([0, 1], [0, 1], color='gray', linestyle='--',  lw=2)
 
-    # Formatting the plot
-    if mass is not None:
-        plt.title(f"ROC Curve for Mass {mass}")
-    else:
-        plt.title("ROC Curve")
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.legend(loc="lower right")
-    plt.grid(True)
-    plt.tight_layout()
+# def plot_roc_curve_multiclass(y_true, y_score, output_dir, labels, mass = None):
+#     y_true_binarized = label_binarize(y_true, classes=range(len(labels)))
+#     plt.figure(figsize=(8, 6))
 
-    # Save the plot
-    if mass is not None:
-        plot_path = os.path.join(output_dir, f"roc_curve_mass_{mass}.png")
-    else:
-        plot_path = os.path.join(output_dir, "roc_curve_multiclass.png")
-    plt.savefig(plot_path)
-    plt.close()
-    print(f"ROC curve saved  to: {plot_path}")
+#     # For each class, compute the ROC curve and AUC
+#     for i, label in enumerate(labels):
+#         fpr, tpr, _ = roc_curve(y_true_binarized[:, i], y_score[:, i])
+#         roc_auc = auc(fpr, tpr)
+#         plt.plot(fpr, tpr, lw=2, label=f"Class {label} (AUC = {roc_auc:.2f})")
+
+#     # Plot diagonal line
+#     plt.plot([0, 1], [0, 1], color='gray', linestyle='--',  lw=2)
+
+#     # Formatting the plot
+#     if mass is not None:
+#         plt.title(f"ROC Curve for Mass {mass}")
+#     else:
+#         plt.title("ROC Curve")
+#     plt.xlabel('False Positive Rate')
+#     plt.ylabel('True Positive Rate')
+#     plt.legend(loc="lower right")
+#     plt.grid(True)
+#     plt.tight_layout()
+
+#     # Save the plot
+#     if mass is not None:
+#         plot_path = os.path.join(output_dir, f"roc_curve_mass_{mass}.png")
+#     else:
+#         plot_path = os.path.join(output_dir, "roc_curve_multiclass.png")
+#     plt.savefig(plot_path)
+#     plt.close()
+#     print(f"ROC curve saved  to: {plot_path}")
 
 def plot_shap_values(model, X_sample, feature_columns, output_dir):
     """
@@ -317,7 +411,8 @@ def plot_classifier_output(model, X_train, Y_train, X_test, Y_test, output_dir, 
     # Map class indices to desired comparisons
     comparisons = {
         "ggH vs Background": (0, 2),
-        "VBF vs Background": (1, 2)
+        "VBF vs Background": (1, 2),
+        "ggH vs VBF": (0, 1)
     }
 
     for plot_title, (signal_idx, background_idx) in comparisons.items():

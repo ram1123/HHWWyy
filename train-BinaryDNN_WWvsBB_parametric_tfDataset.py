@@ -9,6 +9,10 @@ import pandas as pd
 import json
 import argparse
 
+import dask.dataframe as dd
+import numpy as np
+from pathlib import Path
+
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
@@ -20,10 +24,10 @@ from tensorflow.keras.callbacks import EarlyStopping, CSVLogger, LearningRateSch
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.optimizers import Nadam
 import uproot
-from plotting.plotter import plotter
 
 from plotting.plotter_New import plot_correlation_matrix
 from plotting.plotter_New import plot_training_progress
+from plotting.plotter_New import plot_training_progress_from_csv
 from plotting.plotter_New import plot_metrics
 from plotting.plotter_New import plot_confusion_matrix_multiclass
 from plotting.plotter_New import plot_roc_curve_multiclass
@@ -47,129 +51,6 @@ np.random.seed(7)
 
 CURRENT_DATETIME = datetime.now()
 
-class PerMassMetricsCallback(Callback):
-    def __init__(self, model_reference, val_dataset, masses, output_dir, batch_size=32):
-        """
-        Callback to compute accuracy and loss for each mass point during training.
-
-        :param model_reference: Reference to the trained model.
-        :param val_dataset: tf.data.Dataset for validation (features + labels).
-        :param masses: List of unique mass values.
-        :param output_dir: Directory to save metric plots.
-        :param batch_size: Batch size for evaluation.
-        """
-        super().__init__()
-        self.model_reference = model_reference  # Store model reference
-        # self.val_dataset = val_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)  # Ensure batched & optimized dataset
-        # Instead of re-batching, create an unbatched copy for filtering.
-        self.masses = masses
-        self.val_dataset_unbatched = val_dataset.unbatch().prefetch(tf.data.AUTOTUNE)
-        self.output_dir = output_dir
-        self.batch_size = batch_size
-        self.history = {mass: {'accuracy': [], 'loss': []} for mass in masses}
-
-    def filter_by_mass1(self, dataset, mass_value, batch_size=32):
-        def filter_fn(x, y):
-            tf.print("Mass Value in Sample:", x[-1])  # Debugging
-            return tf.equal(x[-1], mass_value)  # Ensure x[-1] is the mass column
-        # Fix: Extract mass from the last column (correct per-sample filtering)
-        for f,l in dataset.take(1):
-            tf.print("Mass Value in Sample:", f[-1])  # Debugging
-        #filtered_dataset = dataset.filter(lambda x, y: tf.equal(x[:, -1], mass_value))
-        filtered_dataset = dataset.filter(lambda x, y: tf.equal(tf.squeeze(x[-1]), mass_value))
-
-        # Fix: Ensure consistent batch sizes (drop incomplete batches)
-        filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
-        # Apply filtering sample-wise
-        #filtered_dataset = dataset.filter(lambda x, y: tf.squeeze(filter_fn(x, y)))
-
-        # Batch the dataset correctly, dropping incomplete batches
-        #filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
-
-        return filtered_dataset
-
-    def filter_by_mass2(self, dataset, mass_value, batch_size=32):
-        def filter_fn(x, y):
-            return tf.equal(tf.squeeze(x[-1]), tf.cast(mass_value, tf.float32))
-
-        # Apply filtering sample-wise (ensuring scalar bool output)
-        filtered_dataset = dataset.filter(lambda x, y: tf.reshape(filter_fn(x, y), []))
-
-        # Ensure batch size consistency to avoid shape mismatches
-        filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
-
-        return filtered_dataset
-
-    def filter_by_mass(self, dataset, mass_value, batch_size=32):
-        def filter_fn(x, y):
-            # Extract the last column (mass feature) per individual sample
-            mass_column = x[..., -1]  # Correctly extracts mass for each row
-            return tf.equal(mass_column, tf.cast(mass_value, tf.float32))  # Element-wise comparison
-
-        # Corrected: Apply filtering **per sample** and ensure scalar boolean output
-        filtered_dataset = dataset.filter(lambda x, y: tf.equal(tf.squeeze(x[..., -1]), tf.cast(mass_value, tf.float32)))
-
-        # Ensure all batches have the same shape to avoid "Cannot batch tensors with different shapes" errors
-        filtered_dataset = filtered_dataset.batch(batch_size, drop_remainder=True)
-
-        return filtered_dataset
-
-    def on_epoch_end(self, epoch, logs=None):
-        print(f"\nEvaluating per mass metrics after epoch {epoch + 1}...")
-
-        for mass in self.masses:
-            # mass_dataset = self.filter_by_mass(self.val_dataset, mass)
-            mass_dataset = self.filter_by_mass(self.val_dataset_unbatched, mass)
-            # Safely check if dataset is empty
-            try:
-                next(iter(mass_dataset.take(1)))  # Try fetching one batch
-            except StopIteration:
-                continue  # Skip this mass if no data
-
-            metrics = self.model.evaluate(mass_dataset, verbose=0)
-            self.history[mass]['loss'].append(metrics[0])
-            self.history[mass]['accuracy'].append(metrics[1])
-
-
-
-    def plot_metrics(self):
-        """
-        Generate and save accuracy vs. epoch and loss vs. epoch plots for each mass.
-        """
-        for mass in self.masses:
-            if len(self.history[mass]['accuracy']) == 0:
-                continue  # Skip if no data for this mass
-
-            # Plot accuracy
-            plt.figure(figsize=(8, 6))
-            plt.plot(self.history[mass]['accuracy'], label=f"Mass {mass}")
-            plt.xlabel("Epoch")
-            plt.ylabel("Accuracy")
-            plt.title(f"Accuracy vs. Epoch for Mass {mass}")
-            plt.legend()
-            plt.grid()
-            plt.tight_layout()
-            plt.savefig(f"{self.output_dir}/accuracy_vs_epoch_mass_{mass}.png")
-            plt.close()
-
-            # Plot loss
-            plt.figure(figsize=(8, 6))
-            plt.plot(self.history[mass]['loss'], label=f"Mass {mass}")
-            plt.xlabel("Epoch")
-            plt.ylabel("Loss")
-            plt.title(f"Loss vs. Epoch for Mass {mass}")
-            plt.legend()
-            plt.grid()
-            plt.tight_layout()
-            plt.savefig(f"{self.output_dir}/loss_vs_epoch_mass_{mass}.png")
-            plt.close()
-
-            print(f"Saved accuracy and loss plots for mass {mass}")
-
-# Ensure directory exists
-def ensure_directory_exists(directory):
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
 # Load data from ROOT files into a DataFrame
 def load_data(inputPath, variables, num_events, csv_path, metadata_path):
@@ -241,6 +122,78 @@ def load_data(inputPath, variables, num_events, csv_path, metadata_path):
 
     return data
 
+
+def _read_proc_ddf(base, proc, variables):
+    pat = os.path.join(base, proc, "*.parquet")
+    print(f"Reading parquet files from: {pat}")
+    # print
+    return dd.read_parquet(pat, columns=variables)
+
+def load_from_parquet_to_numpy(inputPath, variables, num_events):
+    """
+    Reads all parquet under inputPath/{ggh,vbf,bkg}/ recursively via Dask,
+    takes up to num_events rows per process, returns (X, y) as numpy arrays.
+    """
+    specs = {
+        "ggh_powhegPS": dict(target=0, process_ID="ggh"),
+        "vbf_powheg_dipole": dict(target=1, process_ID="vbf"),
+
+        "dy_VBF_filter": dict(target=2, process_ID="bkg"),
+        "dy_M-100To200_MiNNLO": dict(target=2, process_ID="bkg"),
+        "dy_M-50_MiNNLO": dict(target=2, process_ID="bkg"),
+
+        "ewk_lljj_mll50_mjj120": dict(target=2, process_ID="bkg"),
+
+        "ttjets_dl": dict(target=2, process_ID="bkg"),
+        "ttjets_sl": dict(target=2, process_ID="bkg"),
+    }
+    parts = []
+    for proc, meta in specs.items():
+        ddf = _read_proc_ddf(inputPath, proc, variables)
+        n_take = int(num_events) if (num_events and num_events > 0) else None
+        print(f"Taking {n_take} rows for {proc}")
+        df = ddf.head(n_take, compute=True) if n_take else ddf.compute()
+        if df.empty:
+            print(f"[warn] No rows for {proc} under {inputPath}")
+            continue
+        df = df.copy()
+        df["target"] = meta["target"]
+        df["process_ID"] = meta["process_ID"]
+        df["classweight"] = 1.0
+        parts.append(df)
+
+    if not parts:
+        raise RuntimeError("No data loaded from parquet. Check paths/variables.")
+    df_all = pd.concat(parts, ignore_index=True)
+
+    X = df_all[variables].to_numpy(dtype=np.float32)
+    y = df_all["target"].to_numpy(dtype=np.int64)
+    return X, y
+
+def save_npz_dataset(path, **arrays):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    np.savez_compressed(path, **arrays)
+    print(f"[cache] saved: {path}")
+
+def load_npz_dataset(path):
+    with np.load(path, allow_pickle=False) as z:
+        return {k: z[k] for k in z.files}
+
+def save_scaler_npz(path, scaler, feature_names):
+    np.savez_compressed(
+        path,
+        mean=scaler.mean_.astype(np.float32),
+        scale=scaler.scale_.astype(np.float32),
+        var=scaler.var_.astype(np.float32),
+        features=np.array(feature_names)
+    )
+    print(f"[cache] saved scaler: {path}")
+
+def load_scaler_npz(path):
+    z = np.load(path, allow_pickle=False)
+    return dict(mean=z["mean"], scale=z["scale"], var=z["var"], features=z["features"])
+
+
 # Ensure input data is numeric and clean
 def preprocess_data(data, exclude_columns=[]):
     """
@@ -267,31 +220,23 @@ def preprocess_data(data, exclude_columns=[]):
 METRICS = [
     tf.keras.metrics.CategoricalAccuracy(name='accuracy'),
     tf.keras.metrics.AUC(name='auc'),
+    tf.keras.metrics.Precision(name='precision'),
+    tf.keras.metrics.Recall(name='recall'),
+    tf.keras.metrics.TruePositives(name='tp'),
+    tf.keras.metrics.TrueNegatives(name='tn'),
+    tf.keras.metrics.FalsePositives(name='fp'),
+    tf.keras.metrics.FalseNegatives(name='fn'),
+    tf.keras.metrics.CategoricalCrossentropy(name='crossentropy')
 ]
 
 # Custom learning rate scheduler
 def custom_learning_rate_scheduler(epoch, lr):
-    if epoch < 10:
-        return 0.01
+    if epoch < 3:
+        return 3e-4
     else:
-        return float(lr * tf.math.exp(-0.05 * (epoch - 10)))
+        return float(lr * 0.98)
 
-# Build and compile a multi-class DNN model
-#def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001):
-#    model = Sequential([
-#        Dense(256, input_dim=input_dim, activation=activation),
-#        BatchNormalization(),
-#        Dropout(dropout_rate),
-#        Dense(128, activation=activation),
-#        BatchNormalization(),
-#        Dropout(dropout_rate),
-#        Dense(64, activation=activation),
-#        Dense(3, activation="softmax")  # Softmax for multi-class classification
-#    ])
-#    model.compile(optimizer=Nadam(learning_rate=learn_rate), loss='categorical_crossentropy', metrics=METRICS)
-#    return model
-
-# Function to build the model
+# Function to build the multi-class DNN model
 def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001):
     model = Sequential([
         Dense(256, input_shape=(input_dim,), activation=activation),
@@ -304,9 +249,11 @@ def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001
         Dense(3, activation="softmax")  # 3-class classification
     ])
 
+    opt = Nadam(learning_rate=learn_rate, clipnorm=1.0)  # Gradient clipping to prevent exploding gradients
+
     # Compile the model
-    model.compile(optimizer=Nadam(learning_rate=learn_rate),
-                  loss='categorical_crossentropy',
+    model.compile(optimizer=opt,
+                  loss=tf.keras.losses.CategoricalCrossentropy(),
                   metrics=METRICS)
 
     return model
@@ -346,42 +293,6 @@ def train_model(model, X_train, Y_train, X_val, Y_val, batch_size, epochs, outpu
     )
     return history
 
-#def train_model_with_mass_metrics(model, X_train, Y_train, X_val, Y_val, batch_size, epochs, output_dir, signal_masses, class_weight=None):
-def train_model_with_mass_metrics(model, train_dataset, val_dataset, batch_size, epochs, output_dir, signal_masses, class_weight=None):
-    """
-    Train the model with accuracy and loss tracking for each mass point.
-
-    :param model: The model to train.
-    :param X_train: Training feature set (including the mass feature).
-    :param Y_train: Training labels (one-hot encoded).
-    :param X_val: Validation feature set (including the mass feature).
-    :param Y_val: Validation labels (one-hot encoded).
-    :param batch_size: Batch size for training.
-    :param epochs: Number of epochs to train.
-    :param output_dir: Directory to save plots and metrics.
-    :param class_weight: Optional class weights for imbalanced data.
-    :return: Training history and per mass metrics callback.
-    """
-    masses = np.unique(signal_masses)
-    #per_mass_callback = PerMassMetricsCallback(model, X_val, Y_val, masses, output_dir)
-    per_mass_callback =PerMassMetricsCallback(model, val_dataset, masses, output_dir)
-
-    # Train the model
-    history = model.fit(
-        train_dataset,
-        validation_data=val_dataset,
-        batch_size=batch_size,
-        epochs=epochs,
-        callbacks=[per_mass_callback],
-        class_weight=class_weight,
-        verbose=1
-    )
-
-    # Generate plots for per mass metrics
-    per_mass_callback.plot_metrics()
-    #per_mass_callback =1
-
-    return history, per_mass_callback
 
 # Plot confusion matrix
 def plot_confusion_matrix(y_true, y_pred, output_path, labels, title="Confusion Matrix"):
@@ -401,16 +312,31 @@ def main():
     parser.add_argument('--output_dir', required=True, help="Directory to save outputs.")
     parser.add_argument('--retrain', action='store_true', help="Retrain the model.")
     parser.add_argument('--job_name', type=str, default="DNN", help="Job name.")
-    parser.add_argument('--epochs', type=int, default=50, help="Number of epochs.")
+    parser.add_argument('--epochs', type=int, default=15, help="Number of epochs.")
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size.")
     parser.add_argument('--learn_rate', type=float, default=0.001, help="Learning rate.")
     parser.add_argument('--num_events', type=int, default=1000, help="Number of events to load.")
     parser.add_argument('--json', type=str, default='input_variables.json', help="Input variable JSON file.")
+    parser.add_argument('--use_gateway', action='store_true', help="Use Dask Gateway for distributed computing.")
 
     args = parser.parse_args()
 
+    # if args.use_gateway:
+    #     from dask_gateway import Gateway
+    #     gateway = Gateway(
+    #         "http://dask-gateway-k8s.geddes.rcac.purdue.edu/",
+    #         proxy_address="traefik-dask-gateway-k8s.cms.geddes.rcac.purdue.edu:8786",
+    #     )
+    #     cluster_info = gateway.list_clusters()[0]# get the first cluster by default. There only should be one anyways
+    #     client = gateway.connect(cluster_info.name).get_client()
+    #     print("Gateway Client created")
+    # else: # use local cluster
+    #     from dask.distributed import Client
+    #     client = Client(n_workers=15,  threads_per_worker=1, processes=True, memory_limit='30 GiB')
+    #     print("Local scale Client created")
+
     args.output_dir = os.path.join(args.output_dir, f"{args.job_name}")
-    ensure_directory_exists(args.output_dir)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # Create list of headers for dataset .csv
     input_var_jsonFile = open(args.json,'r')
@@ -424,43 +350,56 @@ def main():
     # Define paths and parameters
     csv_path = os.path.join(args.output_dir, "output_dataframe.csv")
     metadata_path = os.path.join(args.output_dir, "variables_metadata.json")
-    model_path = os.path.join(args.output_dir, "model.h5")
+    model_path = os.path.join(args.output_dir, "model.keras")
 
-    # Load data from ROOT files or CSV
-    data = load_data(args.inputPath, variables, args.num_events, csv_path=csv_path, metadata_path=metadata_path)
+    # cache paths
+    npz_cache = os.path.join(args.output_dir, "dataset_trainval.npz")
+    scaler_cache = os.path.join(args.output_dir, "scaler.npz")
 
-    # print dataframe info
-    #print(data.info())
-
-    # print dataframe head
-    #print(data.head())
-    #print(data['mass'].unique())
-
-
-    # Define feature columns for simple multiclass DNN (exclude 'mass')
-    feature_columns = [col for col in variables if col not in ['target', 'process_ID', 'classweight']]
+    # variables already built from JSON:
+    feature_columns = [col for col in variables if col not in ['target','process_ID','classweight']]
     print(f"Feature columns: {feature_columns}")
 
-    # Extract only the features used for training (no mass)
-    X = data[feature_columns].values
-    Y = pd.get_dummies(data['target']).values  # One-hot encoding for multi-class
+    if os.path.exists(npz_cache) and os.path.exists(scaler_cache) and (not args.retrain):
+        print(f"[cache] loading arrays from {npz_cache}")
+        data = load_npz_dataset(npz_cache)
+        X_train = data["X_train"]; X_val = data["X_val"]
+        Y_train = data["Y_train"]; Y_val = data["Y_val"]
+    else:
+        # 1) parquet -> numpy
+        X, y = load_from_parquet_to_numpy(args.inputPath, feature_columns, args.num_events)
 
-    # Split into train and validation sets
-    X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=7)
+        # 2) one-hot labels
+        n_classes = 3
+        Y = np.eye(n_classes, dtype=np.float32)[y]
 
-    print("X_train shape:", X_train.shape)
-    print("X_val shape:", X_val.shape)
+        X = np.asarray(X, dtype=np.float32)
+        X[~np.isfinite(X)] = 0.0  # Replace NaN and inf with 0
 
-    # Preprocess training and validation data (no exclude_columns needed)
-    X_train = preprocess_data(pd.DataFrame(X_train, columns=feature_columns)).values
-    X_val = preprocess_data(pd.DataFrame(X_val, columns=feature_columns)).values
-    Y_train = pd.DataFrame(Y_train).astype('float32').values
-    Y_val = pd.DataFrame(Y_val).astype('float32').values
+        # 3) train/val split
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=7, stratify=y)
+
+        # 4) scale (fit on train only), but DO NOT scale any special categorical column (if you add one later)
+        X_train_df = pd.DataFrame(X_train, columns=feature_columns)
+        X_val_df   = pd.DataFrame(X_val,   columns=feature_columns)
+        X_train = scaler.fit_transform(X_train_df).astype(np.float32)
+        X_val   = scaler.transform(X_val_df).astype(np.float32)
+
+        # guard against zero-variance columns causing Inf
+        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        X_val   = np.nan_to_num(X_val,   nan=0.0, posinf=0.0, neginf=0.0)
+
+        # 5) save arrays + scaler
+        save_npz_dataset(npz_cache, X_train=X_train, X_val=X_val, Y_train=Y_train, Y_val=Y_val, features=np.array(feature_columns))
+        save_scaler_npz(scaler_cache, scaler, feature_columns)
+
+    print("X_train shape:", X_train.shape, "X_val shape:", X_val.shape)
 
     # Create plots directory
     plots_dir = os.path.join(args.output_dir, "plots")
-    ensure_directory_exists(plots_dir)
+    os.makedirs(plots_dir, exist_ok=True)
 
+    history = None
     # Check if the model already exists
     if os.path.exists(model_path) and (not args.retrain):
         print(f"Trained model already exists at {model_path}. Loading the model...")
@@ -478,6 +417,7 @@ def main():
         )
 
         # Evaluate and save model
+
         model.save(model_path)
         print(f"Saved model to: {model_path}")
 
@@ -487,13 +427,32 @@ def main():
     y_score = model.predict(X_val)
 
     # ROC Curve
-    plot_roc_curve_multiclass(Y_val, y_score, plots_dir, labels=["ggH", "VBF", "Background"], mass=None)
-
-    # Confusion Matrix
-    plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggH", "VBF", "Background"], mass=None)
+    plot_roc_curve_multiclass(Y_val, y_score, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
 
     # Classification Report
     plot_classifier_output(model, X_train, Y_train, X_val, Y_val, output_dir=plots_dir, mass=None)
+
+    # Plot training progress
+    plots_dir = os.path.join(args.output_dir, "plots")
+    csv_log   = os.path.join(args.output_dir, "training.log")
+
+    # only call the regular plot if we actually trained this run
+    if history is not None and hasattr(history, "history"):
+        plot_training_progress(history, plots_dir)
+    else:
+        # fallback to CSV log produced in a previous run
+        plot_training_progress_from_csv(csv_log, plots_dir)
+
+
+    plot_metrics(history, plots_dir, csv_log)
+    plot_overfitting_multiclass(model = model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
+    plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
+
+    # Confusion Matrix
+    plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
+
+    plot_correlation_matrix(X_train, plots_dir, feature_columns)
+
 
 if __name__ == "__main__":
     main()
