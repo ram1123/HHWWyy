@@ -16,7 +16,7 @@ def z2_asimov(S, B, eps=1e-9):
 
     out  = np.zeros_like(S, dtype=float)
     mask = B > eps
-    out[mask]  = 2.0 * ((S[mask] + B[mask]) * np.log(1 + S[mask] / B[mask]) - S[mask])
+    out[mask] = np.sqrt(2.0 *((S[mask] + B[mask]) * np.log1p(S[mask] / B[mask]) - S[mask]))
     out[~mask] = 2.0 * S[~mask]
     return out
 
@@ -59,10 +59,25 @@ def make_significance_binning(
         raise ValueError("Empty signal or background arrays after cleaning.")
 
     # score range
-    if score_min is None: score_min = min(sig_score.min(), bkg_score.min())
-    if score_max is None: score_max = max(sig_score.max(), bkg_score.max())
-    if not np.isfinite(score_min) or not np.isfinite(score_max) or score_min >= score_max:
+    derived_max = max(sig_score.max(), bkg_score.max())
+
+    if score_max is None:
+        score_max = derived_max
+    else:
+        score_max = min(score_max, derived_max)
+
+    if score_min is None:
+        score_min = 0.0
+    else:
+        score_min = max(0.0, score_min)
+
+    if not np.isfinite(score_min) or not np.isfinite(score_max):
         raise ValueError("Invalid score range computed for binning.")
+    if score_max <= score_min:
+        score_max = np.nextafter(score_min, np.inf)
+
+    sig_score = np.clip(sig_score, score_min, score_max)
+    bkg_score = np.clip(bkg_score, score_min, score_max)
 
     # fine prebinning over score
     fine_edges = np.linspace(score_min, score_max, int(fine_bins) + 1)
@@ -204,26 +219,32 @@ if __name__ == "__main__":
     import selection
 
     sig_globs = {
-        "vbf_powheg_dipole": (
-            "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_11August_FixDimuonMass/vbf_powheg_dipole/0/*.parquet"
-        ),
+        # "vbf_powheg_dipole": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/vbf_powheg_dipole/**/*.parquet",
+        "ggh_powhegPS": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/ggh_powhegPS/**/*.parquet",
     }
     sig_score, sig_w = collect_scores(sig_globs, selection)
 
     bkg_globs = {
-        # "dy_MiNNLO": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/*/compacted_11August_FixDimuonMass/dy_M-100To200_MiNNLO/**/*.parquet",
-        "dy_VBFilt": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_03September_FixDimuonMass/dy_VBF_filter/**/*.parquet",
-        # "tt_st": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/*/compacted_11August_FixDimuonMass/ttjets_dl/**/*.parquet",
-        # "vv": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/*/compacted_11August_FixDimuonMass/ww_wz_zz/**/*.parquet",
+        "dy_VBF_filter": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/dy_VBF_filter/**/*.parquet",
+        # "dy_M-50_aMCatNLO": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/dy_M-50_aMCatNLO/**/*.parquet",
+        # "dy_M-100To200_aMCatNLO": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/dy_M-100To200_aMCatNLO/**/*.parquet",
+        # "ewk_lljj_mll50_mjj120": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/ewk_lljj_mll50_mjj120/**/*.parquet",
+        # "ttjets_dl": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/ttjets_dl/**/*.parquet",
+        # "ttjets_sl": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/ttjets_sl/**/*.parquet",
+        # "zz": "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted_19September_FixDimuonMass/zz/**/*.parquet",
     }
     bkg_score, bkg_w = collect_scores(bkg_globs, selection)
+
+    score_lower = 0.0
+    score_upper = float(max(sig_score.max(), bkg_score.max()))
+    print(f"Derived dnn_vbf_score_atanh range: [{score_lower:.6f}, {score_upper:.6f}]")
 
     nb, edges, Sbins, Bbins, Zbins, Ztot = scan_nbins_for_best_edges(
         sig_score, bkg_score, sig_w, bkg_w,
         nbins_list=range(3, 14),
         fine_bins=400,
-        score_min=0.0,
-        score_max=1.0,
+        score_min=score_lower,
+        score_max=score_upper,
         min_total_events_per_bin=5.0,
         min_signal_per_bin=0.3,
         clamp_edges=True,
