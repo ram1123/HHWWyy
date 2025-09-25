@@ -4,6 +4,8 @@
 *.png
 *.npz
 *.keras
+*.pdf
+*.parquet
 *.pyc
 core.*
 *.out

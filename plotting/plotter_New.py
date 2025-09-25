@@ -6,7 +6,7 @@ from sklearn.metrics import roc_curve, auc
 from sklearn.preprocessing import label_binarize
 import numpy as np
 
-# import shap
+import shap
 
 # def plot_correlation_matrix(data, output_dir):
 #     plt.figure(figsize=(12, 10))
@@ -236,8 +236,9 @@ def plot_shap_values(model, X_sample, feature_columns, output_dir):
         "Mismatch between the number of feature names and the input features!"
     )
 
+    X_sample = X_sample[:21000]
     # Initialize the SHAP explainer
-    explainer = shap.Explainer(model, X_sample)
+    explainer = shap.Explainer(model, X_sample)  # Use a subset for background data
     shap_values = explainer(X_sample)
 
     # Extract SHAP values for each class
@@ -255,13 +256,16 @@ def plot_shap_values(model, X_sample, feature_columns, output_dir):
             X_sample,                           # Input features
             feature_names=feature_columns,      # Feature names
             show=False,
-            plot_type='bar'
+            plot_type='bar',
+            max_display=15   # 👈 Only show top 10 features
+
         )
 
         # Save the plot
         class_label = class_names[class_idx].replace(" ", "_")  # Replace spaces with underscores
-        output_path = f"{output_dir}/shap_summary_plot_class_{class_label}.png"
-        plt.savefig(output_path, bbox_inches="tight")
+        output_path = f"{output_dir}/shap_summary_plot_class_{class_label}_top15.pdf"
+        plt.tight_layout()
+        plt.savefig(output_path)
         plt.close()
         print(f"SHAP summary plot saved for {class_label} at {output_path}")
 

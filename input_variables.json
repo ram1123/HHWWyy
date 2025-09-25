@@ -3,7 +3,6 @@
     "mu1_pt_over_mass": "\"F\"",
     "mu2_eta": "\"F\"",
     "mu2_pt_over_mass": "\"F\"",
-
     "dimuon_pt": "\"F\"",
     "dimuon_pt_log": "\"F\"",
     "dimuon_rapidity": "\"F\"",
@@ -11,7 +10,6 @@
     "dimuon_ebe_mass_res_rel": "\"F\"",
     "dimuon_cos_theta_cs": "\"F\"",
     "dimuon_phi_cs": "\"F\"",
-
     "jet1_pt_nominal": "\"F\"",
     "jet1_eta_nominal": "\"F\"",
     "jet1_phi_nominal": "\"F\"",
@@ -20,25 +18,20 @@
     "jet2_phi_nominal": "\"F\"",
     "jet1_qgl_nominal": "\"F\"",
     "jet2_qgl_nominal": "\"F\"",
-
     "njets_nominal": "\"F\"",
     "nBtagLoose_nominal": "\"F\"",
     "nBtagMedium_nominal": "\"F\"",
-
     "jj_mass_nominal": "\"F\"",
     "jj_mass_log_nominal": "\"F\"",
     "jj_dEta_nominal": "\"F\"",
     "jj_dPhi_nominal": "\"F\"",
-
     "htsoft2_nominal": "\"F\"",
     "nsoftjets5_nominal": "\"F\"",
-
     "rpt_nominal": "\"F\"",
     "mmj_min_dEta_nominal": "\"F\"",
     "mmj_min_dPhi_nominal": "\"F\"",
     "ll_zstar_log_nominal": "\"F\"",
     "pt_centrality_nominal": "\"F\"",
     "zeppenfeld_nominal": "\"F\"",
-
     "year": "\"F\""
 }

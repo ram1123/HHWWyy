@@ -39,6 +39,8 @@ from plotting.plotter_New import plot_overfitting_multiclass
 from plotting.plotter_New import plot_classifier_output
 from sklearn.preprocessing import StandardScaler
 
+from rich import print
+
 # Initialize StandardScaler
 scaler = StandardScaler()
 
@@ -601,6 +603,10 @@ def main():
     plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
 
     plot_correlation_matrix(X_train, plots_dir, feature_columns)
+
+    # plot shap values
+    # This is just commented out for now since it takes a long time to run
+    # plot_shap_values(model, X_train, feature_columns, plots_dir)
 
 
 if __name__ == "__main__":

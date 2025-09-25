@@ -168,31 +168,107 @@ for sample, (tag, vbf_filter_bool) in SAMPLES.items():
     # )
 
     # if score_vbf > 0.5, then plot njets_nominal
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(8, 6))
-    plt.hist(
-        out["njets_nominal"],
-        bins=np.arange(-0.5, 10.5, 1),
-        alpha=0.5,
-        label="All events",
-        color="blue",
-        density=True,
-    )
-    plt.hist(
-        out[out["score_vbf"] > 0.5]["njets_nominal"],
-        bins=np.arange(-0.5, 10.5, 1),
-        alpha=0.5,
-        label="VBF-like (score_vbf > 0.5)",
-        color="orange",
-        density=True,
-    )
-    plt.xlabel("Number of Jets (nominal)")
-    plt.ylabel("Normalized Entries")
-    plt.title(f"Jet Multiplicity after Selection for {sample}")
-    plt.legend()
-    plt.grid()
-    plt.savefig(os.path.join(OUT_DIR, f"{sample}_njets_nominal.pdf"))
-    plt.close()
+    # --- ROOT plotting (njets_nominal, all vs VBF-like) ---
+    import ROOT as R
 
+    R.gROOT.SetBatch(True)
+    R.gStyle.SetOptStat(0)
+
+    # Extract arrays
+    nj_all = out["dimuon_mass"].to_numpy()
+    # nj_all = out["njets_nominal"].to_numpy()
+    mask_vbf = out["score_vbf"].to_numpy() > 0.5
+    mask_ggh = out["score_vbf"].to_numpy() <= 0.5
+    nj_vbf = nj_all[mask_vbf]
+    nj_ggh = nj_all[mask_ggh]
+
+    # Define binning
+    edges = np.arange(-0.5, 10.5, 1.0)  # integer jet counts 0..10
+    nbins = len(edges) - 1
+
+    # Create histograms
+    # h_all = R.TH1F("h_all", "", 10, 0, 10)
+    # h_vbf = R.TH1F("h_vbf", "", 10, 0, 10)
+    # h_ggh = R.TH1F("h_ggh", "", 10, 0, 10)
+
+    h_all = R.TH1F("h_all", "", 51, 115, 135)
+    h_vbf = R.TH1F("h_vbf", "", 51, 115, 135)
+    h_ggh = R.TH1F("h_ggh", "", 51, 115, 135)
+
+    # Fill
+    for v in nj_all:
+        h_all.Fill(float(v))
+    for v in nj_vbf:
+        h_vbf.Fill(float(v))
+    for v in nj_ggh:
+        h_ggh.Fill(float(v))
+
+    # Normalize to unit area (if non-empty)
+    if h_all.Integral() > 0:
+        h_all.Scale(1.0 / h_all.Integral())
+    if h_vbf.Integral() > 0:
+        h_vbf.Scale(1.0 / h_vbf.Integral())
+    if h_ggh.Integral() > 0:
+        h_ggh.Scale(1.0 / h_ggh.Integral())
+
+    max_y = max(h_all.GetMaximum(), h_vbf.GetMaximum(), h_ggh.GetMaximum())
+    h_all.SetMaximum(max_y * 1.2)
+
+    # Style
+    h_all.SetLineColor(R.kRed)
+    h_all.SetLineWidth(2)
+    h_all.SetMarkerStyle(20)
+    h_all.SetMarkerColor(R.kRed)
+
+    h_vbf.SetLineColor(R.kBlue)
+    h_vbf.SetLineWidth(2)
+    h_vbf.SetMarkerStyle(24)
+    h_vbf.SetMarkerColor(R.kBlue)
+
+    h_ggh.SetLineColor(R.kGreen + 2)
+    h_ggh.SetLineWidth(2)
+    h_ggh.SetMarkerStyle(25)
+    h_ggh.SetMarkerColor(R.kGreen + 2)
+
+    # Axes
+    h_all.GetXaxis().SetTitle("Number of Jets (nominal)")
+    h_all.GetYaxis().SetTitle("Normalized entries")
+    h_all.GetYaxis().SetNdivisions(505)
+
+    # Canvas & draw
+    c = R.TCanvas("c", "c", 800, 600)
+    c.SetMargin(0.12, 0.04, 0.12, 0.06)
+
+    h_all.Draw("HIST")
+    # h_vbf.Draw("HIST SAME")
+    h_ggh.Draw("HIST SAME")
+
+    # Legend
+    leg = R.TLegend(0.45, 0.72, 0.95, 0.88)
+    leg.SetBorderSize(0)
+    leg.SetFillStyle(0)
+    leg.SetTextSize(0.05)
+    leg.AddEntry(h_all, "All events", "l")
+    # leg.AddEntry(h_vbf, "VBF-like (score_vbf > 0.5)", "l")
+    leg.AddEntry(h_ggh, "ggH-like (score_vbf #le 0.5)", "l")
+    leg.Draw()
+
+    # (Optional) simple CMS-ish label
+    latex = R.TLatex()
+    latex.SetNDC(True)
+    latex.SetTextSize(0.04)
+    latex.DrawLatex(0.14, 0.91, f"{sample}")
+
+    # Save
+    # out_pdf = os.path.join(OUT_DIR, f"{sample}_njets_nominal.pdf")
+    # out_pdf = os.path.join(OUT_DIR, f"{sample}_dimuon_mass.pdf")
+    out_pdf = os.path.join(OUT_DIR, f"{sample}_njets_nominal_gghlike.pdf")
+    out_pdf = os.path.join(OUT_DIR, f"{sample}_dimuon_mass_gghlike.pdf")
+    c.SaveAs(out_pdf)
+
+    # Cleanup (optional in loops)
+    c.Close()
+    R.gDirectory.Delete("h_all;*")
+    R.gDirectory.Delete("h_vbf;*")
 
 print("[bold green]Done.[/]")

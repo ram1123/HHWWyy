@@ -47,6 +47,7 @@ def skim_for_dnn(input_root, out_root, feature_columns):
         "ewk_lljj_mll50_mjj120":("notbtag", "False"),
         "ttjets_dl":           ("notbtag", "False"),
         "ttjets_sl":           ("notbtag", "False"),
+
     }
 
     for subdir, (tag, filter_func) in specs.items():

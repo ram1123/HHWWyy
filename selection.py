@@ -189,8 +189,6 @@ def applyRegionCatCuts(
     jet1_pt = varcol("jet1_pt")
     njets = varcol("njets")  # if you cut on it anywhere
 
-
-
     prod_cat_cut = ak.ones_like(region, dtype="bool")
     # do category cut
     if category == "nocat":
@@ -203,6 +201,7 @@ def applyRegionCatCuts(
         btagMedium_filter = ak.fill_none((nbt_medium >= 1), value=False) & ak.fill_none((njets >= 2), value=False)
         btag_cut = btagLoose_filter | btagMedium_filter
         prod_cat_cut = ~btag_cut
+        # prod_cat_cut = ak.ones_like(region, dtype="bool")
 
     else:  # VBF or ggH
         btagLoose_filter = ak.fill_none((nbt_loose >= 2), value=False)
