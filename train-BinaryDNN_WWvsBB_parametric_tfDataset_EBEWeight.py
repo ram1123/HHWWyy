@@ -71,6 +71,17 @@ METRICS = [
 ]
 
 
+def make_ebe_weights(df, col="dimuon_ebe_mass_res", power=2, clip=(1e-6, None)):
+    s = df[col].astype("float32").to_numpy()
+    if clip[0] is not None:
+        s = np.maximum(s, clip[0])
+    if clip[1] is not None:
+        s = np.minimum(s, clip[1])
+    w = 1.0 / np.power(s, power)  # inverse-variance weighting
+    w = w / np.mean(w)  # normalize to mean 1 (keeps loss scale stable)
+    return w.astype("float32")
+
+
 class BatchSizeTuner(kt.BayesianOptimization):
     def run_trial(self, trial, *args, **kwargs):
         hp = trial.hyperparameters
@@ -440,8 +451,6 @@ def main():
     parser.add_argument('--executions_per_trial', type=int, default=1, help='KerasTuner executions per trial (average).')
     args = parser.parse_args()
 
-
-
     # if args.use_gateway:
     #     from dask_gateway import Gateway
     #     gateway = Gateway(
@@ -458,21 +467,6 @@ def main():
 
     args.output_dir = os.path.join(args.output_dir, f"{args.job_name}")
     os.makedirs(args.output_dir, exist_ok=True)
-
-    # Step-0: Get the copy of this code and the input variables JSON into the output dir
-    this_file = Path(__file__).absolute()
-    os.system(f"cp {this_file} {args.output_dir}/")
-    os.system(f"cp {args.json} {args.output_dir}/")
-
-    # Keep some basic info about the run in a text file and store it to the output dir
-    with open(os.path.join(args.output_dir, "command.txt"), "w") as f:
-        f.write(f"Date: {CURRENT_DATETIME}\n")
-        f.write("Command run:\n")
-        f.write(" ".join(sys.argv) + "\n")
-        f.write("\n")
-    # save git patch
-    with open(os.path.join(args.output_dir, "git_patch.diff"), "w") as f:
-        f.write(os.popen("git diff").read())
 
     # Create list of headers for dataset .csv
     variables = []
