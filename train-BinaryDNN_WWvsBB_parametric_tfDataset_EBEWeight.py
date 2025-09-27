@@ -178,7 +178,7 @@ def hyperparam_scan(X_train, Y_train, X_val, Y_val, input_dim, output_dir,
             batch_size=batch_size,
             verbose=0,
             callbacks=callbacks,
-            class_weight=class_weight,
+            # class_weight=class_weight,
         )
 
         # Use val_loss, with val_auc as tiebreaker
@@ -261,7 +261,7 @@ def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=
         epochs=epochs,
         callbacks=callbacks,
         verbose=1,
-        class_weight=class_weight,
+        # class_weight=class_weight,
     )
 
     best_hp = tuner.get_best_hyperparameters(1)[0]
@@ -274,7 +274,7 @@ def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=
         batch_size=best_bs,
         callbacks=callbacks,
         verbose=1,
-        class_weight=class_weight,
+        # class_weight=class_weight,
     )
 
     # save artifacts
@@ -290,7 +290,7 @@ def _read_proc_ddf(base, proc, variables):
     # print
     return dd.read_parquet(pat, columns=variables)
 
-def load_from_parquet_to_numpy(inputPath, variables, num_events):
+def load_from_parquet_to_numpy(inputPath, variables, num_events, weight_col='dimuon_ebe_mass_res'):
     """
     Reads all parquet under inputPath/{ggh,vbf,bkg}/ recursively via Dask,
     takes up to num_events rows per process, returns (X, y) as numpy arrays.
@@ -310,9 +310,8 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
     }
     parts = []
     for proc, meta in specs.items():
-        ddf = _read_proc_ddf(inputPath, proc, variables)
+        ddf = _read_proc_ddf(inputPath, proc, variables + [weight_col])
         n_take = int(num_events) if (num_events and num_events > 0) else None
-        print(f"Taking {n_take} rows for {proc}")
         df = ddf.head(n_take, compute=True) if n_take else ddf.compute()
         if df.empty:
             print(f"[warn] No rows for {proc} under {inputPath}")
@@ -320,16 +319,18 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
         df = df.copy()
         df["target"] = meta["target"]
         df["process_ID"] = meta["process_ID"]
-        df["classweight"] = 1.0
         parts.append(df)
 
     if not parts:
         raise RuntimeError("No data loaded from parquet. Check paths/variables.")
     df_all = pd.concat(parts, ignore_index=True)
 
+    # features, labels, ebe weights
     X = df_all[variables].to_numpy(dtype=np.float32)
     y = df_all["target"].to_numpy(dtype=np.int64)
-    return X, y
+    w_ebe = make_ebe_weights(df_all, col=weight_col)
+
+    return X, y, w_ebe
 
 def save_npz_dataset(path, **arrays):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -420,14 +421,14 @@ def train_model(model, train_ds, val_ds, epochs, output_dir, class_weight=None):
         validation_data=val_ds,
         epochs=epochs,
         callbacks=[early_stopping, csv_logger, lr_scheduler],
-        class_weight=class_weight,
+        # class_weight=class_weight,
         verbose=1
     )
     return history
 
 
-def make_dataset(X, Y, batch_size, train=True, shuffle_buf=10000, seed=SEED):
-    ds = tf.data.Dataset.from_tensor_slices((X, Y))
+def make_dataset(X, Y, W, batch_size, train=True, shuffle_buf=10000, seed=SEED):
+    ds = tf.data.Dataset.from_tensor_slices((X, Y, W))
     if train:
         ds = ds.shuffle(buffer_size=shuffle_buf, seed=seed, reshuffle_each_iteration=True)
     return ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -487,8 +488,10 @@ def main():
     if os.path.exists(npz_cache) and os.path.exists(scaler_cache) and (not args.retrain):
         print(f"[cache] loading arrays from {npz_cache}")
         data = load_npz_dataset(npz_cache)
-        X_train = data["X_train"]; X_val = data["X_val"]
-        Y_train = data["Y_train"]; Y_val = data["Y_val"]
+        X_train, X_val = data["X_train"], data["X_val"]
+        Y_train, Y_val = data["Y_train"], data["Y_val"]
+        y_train, y_val = data["y_train"], data["y_val"]
+        Wtrain, Wval   = data["Wtrain"],  data["Wval"]
 
         class_ids = np.arange(Y_train.shape[1])
         class_weight_vals = compute_class_weight(
@@ -500,7 +503,7 @@ def main():
         print(f"class weights (from cache): {class_weight}")
     else:
         # 1) parquet -> numpy
-        X, y = load_from_parquet_to_numpy(args.inputPath, feature_columns, args.num_events)
+        X, y, W_ebe = load_from_parquet_to_numpy(args.inputPath, feature_columns, args.num_events)
 
         # 2) one-hot labels
         n_classes = 3
@@ -509,17 +512,24 @@ def main():
         X = np.asarray(X, dtype=np.float32)
         X[~np.isfinite(X)] = 0.0  # Replace NaN and inf with 0
 
-        # 3) train/val split
-        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=7, stratify=y)
-
+        # 3) train/val split (keep y for stratify and to build class weights)
+        X_train, X_val, Y_train, Y_val, y_train, y_val, Wtrain_ebe, Wval_ebe = train_test_split(
+            X, Y, y, W_ebe, test_size=0.1, random_state=SEED, stratify=y
+        )
+        # class weights from y_train
         class_ids = np.arange(Y_train.shape[1])
         class_weight_vals = compute_class_weight(
             class_weight='balanced',
             classes=class_ids,
-            y=np.argmax(Y_train, axis=1),
-        )
-        class_weight = {int(c): float(w) for c, w in zip(class_ids, class_weight_vals)}
-        print(f"class weights: {class_weight}")
+            y=y_train)
+        cw_map = np.asarray([class_weight_vals[i] for i in class_ids], dtype=np.float32)
+
+        Wtrain = Wtrain_ebe * cw_map[y_train]
+        Wval   = Wval_ebe   * cw_map[y_val]
+
+        # (optional) re-normalize to mean 1 to keep loss scale stable
+        Wtrain = Wtrain / np.mean(Wtrain)
+        Wval   = Wval   / np.mean(Wval)
 
         # 4) scale (fit on train only), but DO NOT scale any special categorical column (if you add one later)
         X_train_df = pd.DataFrame(X_train, columns=feature_columns)
@@ -532,7 +542,10 @@ def main():
         X_val   = np.nan_to_num(X_val,   nan=0.0, posinf=0.0, neginf=0.0)
 
         # 5) save arrays + scaler
-        save_npz_dataset(npz_cache, X_train=X_train, X_val=X_val, Y_train=Y_train, Y_val=Y_val, features=np.array(feature_columns))
+        save_npz_dataset(npz_cache, X_train=X_train, X_val=X_val, Y_train=Y_train, Y_val=Y_val,
+                        y_train=y_train, y_val=y_val,
+                        Wtrain=Wtrain, Wval=Wval,
+                        features=np.array(feature_columns))
         save_scaler_npz(scaler_cache, scaler, feature_columns)
 
     print("X_train shape:", X_train.shape, "X_val shape:", X_val.shape)
@@ -548,8 +561,8 @@ def main():
         tuned_bs = int(best_hp_vals.get("batch_size", args.batch_size))
     bs = tuned_bs if tuned_bs is not None else args.batch_size
 
-    train_ds = make_dataset(X_train, Y_train, batch_size=bs, train=True)
-    val_ds   = make_dataset(X_val,   Y_val,   batch_size=bs, train=False)
+    train_ds = make_dataset(X_train, Y_train, Wtrain, batch_size=bs, train=True)
+    val_ds   = make_dataset(X_val,   Y_val,   Wval,   batch_size=bs, train=False)
 
     history = None
     if os.path.exists(model_path) and (not args.retrain) and (not args.bayes):
@@ -588,7 +601,7 @@ def main():
                     validation_data=val_ds,
                     epochs=args.epochs,
                     callbacks=callbacks,
-                    class_weight=class_weight,
+                    # class_weight=class_weight,
                     verbose=1,
                 )
                 model.save(model_path)
@@ -601,7 +614,7 @@ def main():
                     model, train_ds, val_ds,
                     epochs=args.epochs,
                     output_dir=args.output_dir,
-                    class_weight=class_weight,
+                    # class_weight=class_weight,
                 )
                 # Evaluate and save model
                 model.save(model_path)

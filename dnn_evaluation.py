@@ -16,13 +16,20 @@ import selection
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # force CPU
 
 # ----------- CONFIG -----------
-INPUT_ROOT = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/"
+INPUT_DIR = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/"
 FEATURES_JSON = (
     "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_variables.json"
 )
-SCALER_NPZ = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/scaler.npz"
-MODEL_PATH = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/model.keras"
-OUT_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/tag_fractions"
+
+# With class weights only to fix the imbalance in training
+MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2/"
+
+# With sample weights: using 1/sigma^2 as weights
+# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2_SampleWgt/"
+
+SCALER_NPZ = f"{MODEL_DIR}/scaler.npz"
+MODEL_PATH = f"{MODEL_DIR}/model.keras"
+OUT_DIR = f"{MODEL_DIR}/tag_fractions"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 
@@ -52,11 +59,11 @@ SAMPLES = {
     "ggh_powhegPS": ("notbtag", False),
     "vbf_powheg_dipole": ("notbtag", False),
     "dy_VBF_filter": ("notbtag", True),
-    # "dy_M-100To200_MiNNLO": ("notbtag", True),
-    # "dy_M-50_MiNNLO": ("notbtag", True),
-    # "ewk_lljj_mll50_mjj120": ("notbtag", False),
-    # "ttjets_dl": ("notbtag", False),
-    # "ttjets_sl": ("notbtag", False),
+    "dy_M-100To200_MiNNLO": ("notbtag", True),
+    "dy_M-50_MiNNLO": ("notbtag", True),
+    "ewk_lljj_mll50_mjj120": ("notbtag", False),
+    "ttjets_dl": ("notbtag", False),
+    "ttjets_sl": ("notbtag", False),
 }
 
 # ----------- LOAD MODEL & SCALER -----------
@@ -76,7 +83,7 @@ safe_scale = np.where(scale == 0, 1.0, scale)
 # ----------- LOAD DATA, PREDICT, and SAVE -----------
 # print("[bold]Loading data & evaluating…[/]")
 for sample, (tag, vbf_filter_bool) in SAMPLES.items():
-    pat = os.path.join(INPUT_ROOT, sample, "*.parquet")
+    pat = os.path.join(INPUT_DIR, sample, "*.parquet")
 
     # Prefer reading only needed columns, but fall back gracefully
     read_cols = list(
@@ -174,26 +181,25 @@ for sample, (tag, vbf_filter_bool) in SAMPLES.items():
     R.gROOT.SetBatch(True)
     R.gStyle.SetOptStat(0)
 
+    # VBF score cut
+    vbf_cut = 0.8
+
     # Extract arrays
-    nj_all = out["dimuon_mass"].to_numpy()
-    # nj_all = out["njets_nominal"].to_numpy()
-    mask_vbf = out["score_vbf"].to_numpy() > 0.5
-    mask_ggh = out["score_vbf"].to_numpy() <= 0.5
+    # nj_all = out["dimuon_mass"].to_numpy()
+    nj_all = out["njets_nominal"].to_numpy()
+    mask_vbf = out["score_vbf"].to_numpy() > vbf_cut
+    mask_ggh = out["score_vbf"].to_numpy() <= vbf_cut
     nj_vbf = nj_all[mask_vbf]
     nj_ggh = nj_all[mask_ggh]
 
-    # Define binning
-    edges = np.arange(-0.5, 10.5, 1.0)  # integer jet counts 0..10
-    nbins = len(edges) - 1
-
     # Create histograms
-    # h_all = R.TH1F("h_all", "", 10, 0, 10)
-    # h_vbf = R.TH1F("h_vbf", "", 10, 0, 10)
-    # h_ggh = R.TH1F("h_ggh", "", 10, 0, 10)
+    h_all = R.TH1F("h_all", "", 10, 0, 10)
+    h_vbf = R.TH1F("h_vbf", "", 10, 0, 10)
+    h_ggh = R.TH1F("h_ggh", "", 10, 0, 10)
 
-    h_all = R.TH1F("h_all", "", 51, 115, 135)
-    h_vbf = R.TH1F("h_vbf", "", 51, 115, 135)
-    h_ggh = R.TH1F("h_ggh", "", 51, 115, 135)
+    # h_all = R.TH1F("h_all", "", 51, 115, 135)
+    # h_vbf = R.TH1F("h_vbf", "", 51, 115, 135)
+    # h_ggh = R.TH1F("h_ggh", "", 51, 115, 135)
 
     # Fill
     for v in nj_all:
@@ -240,7 +246,7 @@ for sample, (tag, vbf_filter_bool) in SAMPLES.items():
     c.SetMargin(0.12, 0.04, 0.12, 0.06)
 
     h_all.Draw("HIST")
-    # h_vbf.Draw("HIST SAME")
+    h_vbf.Draw("HIST SAME")
     h_ggh.Draw("HIST SAME")
 
     # Legend
@@ -249,11 +255,10 @@ for sample, (tag, vbf_filter_bool) in SAMPLES.items():
     leg.SetFillStyle(0)
     leg.SetTextSize(0.05)
     leg.AddEntry(h_all, "All events", "l")
-    # leg.AddEntry(h_vbf, "VBF-like (score_vbf > 0.5)", "l")
-    leg.AddEntry(h_ggh, "ggH-like (score_vbf #le 0.5)", "l")
+    leg.AddEntry(h_vbf, f"VBF-like (score_vbf > {vbf_cut})", "l")
+    leg.AddEntry(h_ggh, f"ggH-like (score_vbf #le {vbf_cut})", "l")
     leg.Draw()
 
-    # (Optional) simple CMS-ish label
     latex = R.TLatex()
     latex.SetNDC(True)
     latex.SetTextSize(0.04)
@@ -261,9 +266,9 @@ for sample, (tag, vbf_filter_bool) in SAMPLES.items():
 
     # Save
     # out_pdf = os.path.join(OUT_DIR, f"{sample}_njets_nominal.pdf")
-    # out_pdf = os.path.join(OUT_DIR, f"{sample}_dimuon_mass.pdf")
-    out_pdf = os.path.join(OUT_DIR, f"{sample}_njets_nominal_gghlike.pdf")
-    out_pdf = os.path.join(OUT_DIR, f"{sample}_dimuon_mass_gghlike.pdf")
+    out_pdf = os.path.join(OUT_DIR, f"{sample}_dimuon_mass_{str(vbf_cut).replace('.', 'p')}.pdf")
+    # out_pdf = os.path.join(OUT_DIR, f"{sample}_njets_nominal_gghlike.pdf")
+    # out_pdf = os.path.join(OUT_DIR, f"{sample}_dimuon_mass_gghlike.pdf")
     c.SaveAs(out_pdf)
 
     # Cleanup (optional in loops)

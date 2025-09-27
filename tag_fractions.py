@@ -21,12 +21,12 @@ SAMPLES = {
     "ggh_powhegPS":      {"true": "ggh"},
     "vbf_powheg_dipole": {"true": "vbf"},
     # all backgrounds combined for B fractions
-    # "dy_VBF_filter":         {"true": "bkg"},
-    # "dy_M-100To200_MiNNLO":  {"true": "bkg"},
-    # "dy_M-50_MiNNLO":        {"true": "bkg"},
-    # "ewk_lljj_mll50_mjj120": {"true": "bkg"},
-    # "ttjets_dl":             {"true": "bkg"},
-    # "ttjets_sl":             {"true": "bkg"},
+    "dy_VBF_filter":         {"true": "bkg"},
+    "dy_M-100To200_MiNNLO":  {"true": "bkg"},
+    "dy_M-50_MiNNLO":        {"true": "bkg"},
+    "ewk_lljj_mll50_mjj120": {"true": "bkg"},
+    "ttjets_dl":             {"true": "bkg"},
+    "ttjets_sl":             {"true": "bkg"},
 }
 
 # --- Load feature order from the same JSON used for training

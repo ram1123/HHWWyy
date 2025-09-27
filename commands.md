@@ -1,8 +1,28 @@
+# 27 September 2024
+
+```bash
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_relativeEBEonly --epochs 100
+```
+
+
+# 26 September 2024
+```bash
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_Removed_EBE --epochs 100
+
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_Removed_EBEv2 --epochs 100
+
+#DNN_Removed_EBE: removed the EBE variable from the input features
+#DNN_Removed_EBEv2: removed the EBE variable and added the class imbalance handling in the model training
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset_EBEWeight.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_Removed_EBEv2_SampleWgt --epochs 100
+```
+
+
 # 16 September 2024
 
 ```bash
 time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_multiclass_fullStats_Scan_Quick --epochs 100 --retrain
 time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_multiclass_fullStats_Scan_Quick --epochs 100
+
 ```
 
 # 15 September 2024

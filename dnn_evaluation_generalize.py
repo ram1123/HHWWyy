@@ -28,42 +28,39 @@ MODEL_PATH = f"{MODEL_DIR}/model.keras"
 OUT_DIR = f"{MODEL_DIR}/tag_fractions_NewCode"
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# Processes to read  (second item is a BOOL)
+# Processes to read  (second item is a BOOL for your selection)
 SAMPLES = {
     "ggh_powhegPS": ("notbtag", False),
-    "vbf_powheg_dipole": ("notbtag", False),
-    "dy_VBF_filter": ("notbtag", True),
-    "dy_M-100To200_MiNNLO": ("notbtag", True),
-    "dy_M-50_MiNNLO": ("notbtag", True),
-    "ewk_lljj_mll50_mjj120": ("notbtag", False),
-    "ttjets_dl": ("notbtag", False),
-    "ttjets_sl": ("notbtag", False),
+    # "vbf_powheg_dipole": ("notbtag", False),
+    # "dy_VBF_filter": ("notbtag", True),
+    # "dy_M-100To200_MiNNLO": ("notbtag", True),
+    # "dy_M-50_MiNNLO": ("notbtag", True),
+    # "ewk_lljj_mll50_mjj120": ("notbtag", False),
+    # "ttjets_dl": ("notbtag", False),
+    # "ttjets_sl": ("notbtag", False),
 }
 
-# ===== Variables & cuts to scan (add more here) =====
+# ===== Variables & cuts to scan =====
 # (df column name,  x-axis title,         (nbins, xmin, xmax))
 VAR_SPECS = [
     ("njets_nominal", "Number of Jets (nominal)", (10, 0, 10)),
-    ("mu1_eta", "#eta(#mu_{1})", (40, -5, 5)),
-    ("mu2_eta", "#eta(#mu_{2})", (40, -5, 5)),
-    ("mu1_pt", "p_{T}(#mu_{1})", (40, 0, 200)),
-    ("mu2_pt", "p_{T}(#mu_{2})", (40, 0, 200)),
-    ("dimuon_rapidity", "y(#mu#mu)", (40, -5, 5)),
-    ("dimuon_ebe_mass_res", "Event-by-event mass resolution [GeV]", (40, 0, 10)),
-    ("dimuon_ebe_mass_res_rel", "Relative event-by-event mass resolution", (40, 0, 0.1)),
+    # ("mu1_eta", "#eta(#mu_{1})", (40, -5, 5)),
+    # ("mu2_eta", "#eta(#mu_{2})", (40, -5, 5)),
+    # ("mu1_pt", "p_{T}(#mu_{1})", (40, 0, 200)),
+    # ("mu2_pt", "p_{T}(#mu_{2})", (40, 0, 200)),
     ("dimuon_mass", "m_{#mu#mu} [GeV]", (51, 115, 135)),
-    ("dimuon_pt", "p_{T}(#mu#mu) [GeV]", (40, 0, 200)),
-    ("dimuon_eta", "#eta(#mu#mu)", (40, -5, 5)),
-    ("jj_mass_nominal", "m_{jj} [GeV]", (40, 0, 2000)),
-    ("jj_dEta_nominal", "#Delta#eta_{jj}", (40, 0, 10)),
+    # ("dimuon_pt", "p_{T}(#mu#mu) [GeV]", (40, 0, 200)),
+    # ("dimuon_rapidity", "y(#mu#mu)", (40, -5, 5)),
+    # ("dimuon_eta", "#eta(#mu#mu)", (40, -5, 5)),
+    # ("dimuon_ebe_mass_res", "Event-by-event mass resolution [GeV]", (40, 0, 10)),
+    # ("dimuon_ebe_mass_res_rel", "Relative event-by-event mass resolution", (40, 0, 0.1)),
+    # ("jj_mass_nominal", "m_{jj} [GeV]", (40, 0, 2000)),
+    # ("jj_dEta_nominal", "#Delta#eta_{jj}", (40, 0, 10)),
 ]
 
-# Thresholds to scan on the chosen discriminant
 DNN_CUTS = [0.50, 0.65, 0.75, 0.80, 0.85, 0.90]
-
-# Which discriminant to cut on by default
-SCORE_COL = "score_vbf"  # change to "score_ggh_over_sigbkg" after it's created below to use composite score
-PLOT_COMPLEMENT = True   # also draw the <=cut (ggH-like) distribution
+SCORE_COL = "score_vbf"    # change to "score_ggh_over_sigbkg" if desired
+PLOT_COMPLEMENT = True
 NORM_TO_UNIT_AREA = True
 WRITE_ROOT_FILE = True
 # ===================================================
@@ -72,11 +69,9 @@ WRITE_ROOT_FILE = True
 def load_features_from_json(path):
     with open(path, "r") as f:
         items = json.load(f).items()
-    # keep exact training order, drop non-features if present
     return [k for k, _ in items if k not in ("target", "process_ID", "classweight")]
 
-
-# ----------- ROOT helpers (for plotting) -----------
+# ----------- ROOT helpers -----------
 import ROOT as R
 R.gROOT.SetBatch(True)
 R.gStyle.SetOptStat(0)
@@ -118,13 +113,11 @@ def make_variable_plots_for_cuts(df, sample_name,
                                  norm_to_unit=NORM_TO_UNIT_AREA,
                                  write_root=WRITE_ROOT_FILE,
                                  out_dir=OUT_DIR):
-    # Prepare ROOT file if requested
     fout = None
     if write_root:
         root_path = os.path.join(out_dir, f"{sample_name}_shapes.root")
         fout = R.TFile(root_path, "RECREATE")
 
-    # Numpy views for masks
     if score_col not in df.columns:
         print(f"[yellow]WARN[/] score column '{score_col}' not found for {sample_name}; skipping plots.")
         if fout:
@@ -133,16 +126,22 @@ def make_variable_plots_for_cuts(df, sample_name,
 
     score = df[score_col].to_numpy()
 
+    w = (
+        df["wgt_nominal"].to_numpy()
+        if "wgt_nominal" in df.columns
+        else np.ones_like(score, dtype=np.float64)
+    )
+
     for (vname, xtitle, (nb, xmin, xmax)) in var_specs:
         if vname not in df.columns:
-            print(f"[yellow]WARN[/] variable '{vname}' not found for {sample_name}; skipping.")
+            print(f"[yellow]WARN[/] variable '{vname}' not found for {sample_name}; skipping {vname}.")
             continue
 
         var = df[vname].to_numpy()
 
         for cut in cuts:
-            mask_pass = score > cut
-            mask_fail = score <= cut
+            mask_pass = score > cut      # "VBF-like"
+            mask_fail = score <= cut     # "ggH-like"
 
             tag = str(cut).replace(".", "p")
             base = f"{sample_name}_{vname}_cut_{tag}"
@@ -151,15 +150,27 @@ def make_variable_plots_for_cuts(df, sample_name,
             h_pass = _make_hist(f"h_pass__{base}", "", nb, xmin, xmax)
             h_fail = _make_hist(f"h_fail__{base}", "", nb, xmin, xmax)
 
-            _fill_hist_from_np(h_all,  var)
-            _fill_hist_from_np(h_pass, var[mask_pass])
-            _fill_hist_from_np(h_fail, var[mask_fail])
+            # _fill_hist_from_np(h_all,  var)
+            # _fill_hist_from_np(h_pass, var[mask_pass])
+            # _fill_hist_from_np(h_fail, var[mask_fail])
+
+            _fill_hist_from_np_w(h_all,  var,             w)
+            _fill_hist_from_np_w(h_pass, var[mask_pass],  w[mask_pass])
+            _fill_hist_from_np_w(h_fail, var[mask_fail],  w[mask_fail])
+
+
+            # if norm_to_unit:
+            #     _normalize(h_all);
+            #     _normalize(h_pass);
+            #     _normalize(h_fail)
 
             if norm_to_unit:
-                _normalize(h_all); _normalize(h_pass); _normalize(h_fail)
+                _normalize_safe(h_all);
+                _normalize_safe(h_pass);
+                _normalize_safe(h_fail)
 
             # Style
-            _style_hist(h_all,  R.kBlack,    20)
+            _style_hist(h_all, R.kBlack, 20)
             _style_hist(h_pass, R.kBlue,     24)
             _style_hist(h_fail, R.kGreen+2,  25)
 
@@ -190,21 +201,22 @@ def make_variable_plots_for_cuts(df, sample_name,
 
             # Label
             latex = R.TLatex()
-            latex.SetNDC(True); latex.SetTextSize(0.040)
+            latex.SetNDC(True)
+            latex.SetTextSize(0.040)
             latex.DrawLatex(0.14, 0.91, f"{sample_name}  |  cut: {score_col} > {cut}")
 
             # Save
             pdf_name = f"{sample_name}_{vname}_{score_col}_gt_{tag}.pdf"
             _save_canvas(c, os.path.join(out_dir, pdf_name))
 
-            # Optionally write to ROOT file
             if write_root:
                 fout.cd()
-                h_all.Write(); h_pass.Write()
-                if plot_complement: h_fail.Write()
+                h_all.Write()
+                h_pass.Write()
+                if plot_complement:
+                    h_fail.Write()
                 c.Write()
 
-            # Cleanup
             c.Close()
             R.gDirectory.Delete(f"{h_all.GetName()};*")
             R.gDirectory.Delete(f"{h_pass.GetName()};*")
@@ -214,6 +226,26 @@ def make_variable_plots_for_cuts(df, sample_name,
         fout.Close()
         print(f"[green]Wrote ROOT histograms[/] → {root_path}")
 
+
+def _fill_hist_from_np_w(hist, arr, weights):
+    import math
+    if weights is None:
+        _fill_hist_from_np(hist, arr)
+        return
+    for v, w in zip(arr, weights):
+        try:
+            fv = float(v)
+            fw = float(w)
+            if math.isfinite(fv) and math.isfinite(fw):
+                hist.Fill(fv, fw)
+        except Exception:
+            pass
+
+def _normalize_safe(h):
+    integ = h.Integral()
+    # With NLO samples you can get small/negative sums; only normalize if positive.
+    if integ > 0:
+        h.Scale(1.0 / integ)
 
 # ================== MAIN ==================
 if __name__ == "__main__":
@@ -231,68 +263,67 @@ if __name__ == "__main__":
 
     FEATURES = load_features_from_json(FEATURES_JSON)
 
-    # Extra physics columns to preserve for output/plots
-    # Ensure we keep everything referenced in VAR_SPECS
     extra_from_vars = [v[0] for v in VAR_SPECS]
     EXTRA_KEEP = list(dict.fromkeys(
         extra_from_vars + [
             "year",
+            "njets_nominal",
             "nBtagLoose_nominal",
             "nBtagMedium_nominal",
             "gjj_mass",
             "jj_mass_nominal",
             "dimuon_mass",
             "dimuon_pt",
-            "njets_nominal",
+            "wgt_nominal",
         ]
     ))
 
-    # Dict for class ordering in your model (ggh:0, vbf:1, bkg:2)
     score_dict = {0: "ggh", 1: "vbf", 2: "bkg"}
+
+    # Accumulate cutflow rows across all samples & cuts
+    cutflow_rows = []
 
     for sample, (tag, vbf_filter_bool) in SAMPLES.items():
         pat = os.path.join(INPUT_DIR, sample, "*.parquet")
         print(f"[bold blue]Processing[/] {sample}  (pattern: {pat})")
 
-        # Prefer reading only needed columns
-        read_cols = list(dict.fromkeys(FEATURES + EXTRA_KEEP + ["process_ID"]))  # dedup
+        read_cols = list(dict.fromkeys(FEATURES + EXTRA_KEEP + ["process_ID"]))
         try:
             ddf = dak.from_parquet(pat, columns=read_cols)
         except Exception as e:
             print(f"[yellow]WARN[/] {sample}: selective column read failed ({e}); reading all columns.")
             ddf = dak.from_parquet(pat)
 
-        # Apply your region/category selections
         ddf_sel_skim = selection.applyRegionCatCuts(
-            ddf,
-            category=tag,
-            region_name="h-peak",
-            process=sample,
-            variation="nominal",
+            ddf, category=tag, region_name="h-peak",
+            process=sample, variation="nominal",
             do_vbf_filter_study=vbf_filter_bool,
         )
 
-        # Bring to memory as Awkward
         ak_array = ddf_sel_skim.compute()
 
-        # Helper: Awkward column -> flat numpy (OptionType -> NaN)
         def col_to_np(name):
             if name in ak_array.fields:
                 try:
                     return ak.to_numpy(ak_array[name])
                 except Exception:
                     return np.asarray(ak.flatten(ak_array[name], axis=None))
-            # missing column -> NaNs
             return np.full(len(ak_array), np.nan, dtype=np.float64)
 
-        # Build DataFrame with features
         df_eval = pd.DataFrame({var: col_to_np(var) for var in FEATURES})
-        # Add extra columns if present
         for c in EXTRA_KEEP:
             if c not in df_eval.columns:
                 df_eval[c] = col_to_np(c)
 
-        # Clean & standardize using saved stats
+        # --- Weight hygiene ---
+        if "wgt_nominal" not in df_eval.columns:
+            df_eval["wgt_nominal"] = 1.0
+        df_eval["wgt_nominal"] = (
+            pd.to_numeric(df_eval["wgt_nominal"], errors="coerce")
+            .fillna(1.0)
+            .astype(np.float64)
+        )
+
         df_eval[FEATURES] = (
             df_eval[FEATURES].replace([np.inf, -np.inf], np.nan).astype(np.float64)
         )
@@ -300,40 +331,99 @@ if __name__ == "__main__":
         X = (X - mean) / safe_scale
         X = np.nan_to_num(X, copy=False, posinf=0.0, neginf=0.0)
 
-        # Predict
         scores = model.predict(X, batch_size=4096, verbose=0)
 
-        # Attach per-class scores
         if scores.ndim == 1:
             df_eval["score"] = scores
         else:
             for i in range(scores.shape[1]):
                 df_eval[f"score_{score_dict.get(i, str(i))}"] = scores[:, i]
 
-        # Optional composite discriminants (uncomment to use)
-        # More calibrated ggH-vs-bkg-like score:
+        # Optional composite discriminant:
         if {"score_ggh", "score_bkg"}.issubset(set(df_eval.columns)):
             df_eval["score_ggh_over_sigbkg"] = df_eval["score_ggh"] / (
                 df_eval["score_ggh"] + df_eval["score_bkg"] + 1e-12
             )
 
-        # Save per-event scores parquet
+        # Save per-event parquet
         out_path = os.path.join(OUT_DIR, f"{sample}_scores.parquet")
         print(f"Output columns: {sorted(df_eval.columns.tolist())}")
         df_eval.to_parquet(out_path, index=False)
         print(f"[green]Saved[/] → {out_path}")
 
-        # ========= Plot many variables for many cuts (ROOT) =========
+        # -------- CUT-FLOW TABLE (per cut) --------
+        if SCORE_COL not in df_eval.columns:
+            print(f"[yellow]WARN[/] score column '{SCORE_COL}' missing; skipping cut-flow for {sample}.")
+        else:
+            score = df_eval[SCORE_COL].to_numpy()
+            w = df_eval["wgt_nominal"].to_numpy()
+            n_selected = len(df_eval)
+            w_selected = float(w.sum())
+
+            for cut in DNN_CUTS:
+                mask_vbf = score > cut
+                mask_ggh = ~mask_vbf
+                n_vbf = int(mask_vbf.sum())
+                n_ggh = int(n_selected - n_vbf)
+
+                # Weighted counts (normalized to x-sec via wgt_nominal)
+                w_vbf = float(w[mask_vbf].sum())
+                w_ggh = float(w[mask_ggh].sum())
+
+                frac_vbf = (n_vbf / n_selected * 100.0) if n_selected else 0.0
+                frac_ggh = (n_ggh / n_selected * 100.0) if n_selected else 0.0
+                frac_vbf_w = (w_vbf / w_selected * 100.0) if w_selected > 0 else 0.0
+                frac_ggh_w = (w_ggh / w_selected * 100.0) if w_selected > 0 else 0.0
+
+                # Print like your example
+                print(
+                    f"Sample: {sample:<22}, cut {SCORE_COL:>16} > {cut:>4.2f}, "
+                    f"UNW: n_sel:{n_selected:9d}, n_ggh:{n_ggh:9d}({frac_ggh:6.2f}%), n_vbf:{n_vbf:9d}({frac_vbf:6.2f}%)"
+                )
+                print(
+                    f"{'':<22}  {'':>16}   {'':>7}  "
+                    f"WGT: w_sel:{w_selected:9.2f}, w_ggh:{w_ggh:9.2f}({frac_ggh_w:6.2f}%), w_vbf:{w_vbf:9.2f}({frac_vbf_w:6.2f}%)"
+                )
+
+                # Save row to CSV accumulator
+                cutflow_rows.append(
+                    {
+                        "sample": sample,
+                        "cut_var": SCORE_COL,
+                        "cut_threshold": cut,
+                        # unweighted
+                        "n_selected": n_selected,
+                        "n_ggh_like": n_ggh,
+                        "frac_ggh_like_pct": frac_ggh,
+                        "n_vbf_like": n_vbf,
+                        "frac_vbf_like_pct": frac_vbf,
+                        # weighted (x-sec normalized)
+                        "w_selected": w_selected,
+                        "w_ggh_like": w_ggh,
+                        "w_frac_ggh_like_pct": frac_ggh_w,
+                        "w_vbf_like": w_vbf,
+                        "w_frac_vbf_like_pct": frac_vbf_w,
+                    }
+                )
+
+        # -------- ROOT plots across many vars & cuts --------
         make_variable_plots_for_cuts(
             df_eval,
             sample_name=sample,
             var_specs=VAR_SPECS,
             cuts=DNN_CUTS,
-            score_col=SCORE_COL,         # set to "score_ggh_over_sigbkg" if desired
+            score_col=SCORE_COL,   # switch to "score_ggh_over_sigbkg" if desired
             plot_complement=PLOT_COMPLEMENT,
             norm_to_unit=NORM_TO_UNIT_AREA,
             write_root=WRITE_ROOT_FILE,
             out_dir=OUT_DIR,
         )
+
+    # -------- Save combined cut-flow CSV --------
+    if cutflow_rows:
+        cutflow_df = pd.DataFrame(cutflow_rows)
+        cutflow_csv = os.path.join(OUT_DIR, "cutflow_summary.csv")
+        cutflow_df.to_csv(cutflow_csv, index=False)
+        print(f"[bold green]Cut-flow summary saved[/] → {cutflow_csv}")
 
     print("[bold green]Done.[/]")

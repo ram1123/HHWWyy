@@ -10,6 +10,7 @@ R.gROOT.SetBatch(True)
 R.gStyle.SetOptStat(0)
 
 IN_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/tag_fractions"
+IN_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/tag_fractions"
 OUT_PDF = os.path.join(IN_DIR, "ggH_vs_Bkg_score_ggh_after_vbfCut.pdf")
 
 # Define which samples are signal and which to exclude from background
