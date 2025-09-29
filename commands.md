@@ -1,7 +1,10 @@
 # 27 September 2024
 
 ```bash
-time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_relativeEBEonly --epochs 100
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_relativeEBEonly --epochs 100 2>&1 | tee -a output.log
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_relativeEBEonly_NoClassWgt --epochs 100 2>&1 | tee -a output.log
+
+time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/ --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name DNN_BothEBE_WithClassWgt --epochs 100 2>&1 | tee -a log_DNN_BothEBE_WithClassWgt.log
 ```
 
 

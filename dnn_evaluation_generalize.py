@@ -5,12 +5,14 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # force CPU
 
 import json
+import glob
 import numpy as np
 import pandas as pd
 import awkward as ak
 import dask_awkward as dak
 from tensorflow.keras.models import load_model
 from rich import print
+from typing import List, Optional
 
 import selection  # your module
 
@@ -18,26 +20,68 @@ import selection  # your module
 INPUT_DIR = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/"
 FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_variables.json"
 
+# With both EBE mass res inputs
+MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/"
+
+# Removed both EBE mass res inputs
+MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBE/"
+
 # With class weights only to fix the imbalance in training
 MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2/"
-# With sample weights (optional alternative)
-# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2_SampleWgt/"
+
+# No EBE mass res inputs, With sample weights to fix the imbalance in training (sample weight takes class weight into account)
+MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2_SampleWgt/"
+
+# With class weight and with relative EBE mass res as input
+MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_relativeEBEonly/"
+
+# Without class weight and with relative EBE mass res as input
+MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_relativeEBEonly_NoClassWgt/"
+
+# With class weight and with absolute EBE mass res and relative EBE mass res as input
+MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_BothEBE_WithClassWgt/"
 
 SCALER_NPZ = f"{MODEL_DIR}/scaler.npz"
 MODEL_PATH = f"{MODEL_DIR}/model.keras"
 OUT_DIR = f"{MODEL_DIR}/tag_fractions_NewCode"
 os.makedirs(OUT_DIR, exist_ok=True)
 
+# Optional secondary input with event weights. When left as None, the code will
+# attempt to infer a matching directory that still retains the nominal weights
+# (useful when working with the lightweight skimmed parquet files that dropped
+# them).
+WEIGHT_INPUT_DIR = None
+
+# Columns that are safe to use when building a hashing key to align skimmed
+# events with the original files that still contain weights.
+WEIGHT_JOIN_COLUMNS = [
+    "mu1_pt_over_mass",
+    "mu2_pt_over_mass",
+    "mu1_eta",
+    "mu2_eta",
+    "dimuon_mass",
+    "dimuon_pt",
+    "dimuon_pt_log",
+    "jj_mass_nominal",
+    "jj_dEta_nominal",
+    "nBtagLoose_nominal",
+    "nBtagMedium_nominal",
+]
+
+# Floating point precision (decimal places) used while building join keys that
+# mix skimmed features with the weight-bearing parquet files.
+WEIGHT_KEY_DECIMALS = 6
+
 # Processes to read  (second item is a BOOL for your selection)
 SAMPLES = {
     "ggh_powhegPS": ("notbtag", False),
-    # "vbf_powheg_dipole": ("notbtag", False),
-    # "dy_VBF_filter": ("notbtag", True),
-    # "dy_M-100To200_MiNNLO": ("notbtag", True),
-    # "dy_M-50_MiNNLO": ("notbtag", True),
-    # "ewk_lljj_mll50_mjj120": ("notbtag", False),
-    # "ttjets_dl": ("notbtag", False),
-    # "ttjets_sl": ("notbtag", False),
+    "vbf_powheg_dipole": ("notbtag", False),
+    "dy_VBF_filter": ("notbtag", True),
+    "dy_M-100To200_MiNNLO": ("notbtag", True),
+    "dy_M-50_MiNNLO": ("notbtag", True),
+    "ewk_lljj_mll50_mjj120": ("notbtag", False),
+    "ttjets_dl": ("notbtag", False),
+    "ttjets_sl": ("notbtag", False),
 }
 
 # ===== Variables & cuts to scan =====
@@ -64,6 +108,60 @@ PLOT_COMPLEMENT = True
 NORM_TO_UNIT_AREA = True
 WRITE_ROOT_FILE = True
 # ===================================================
+
+
+def _infer_weight_dir_from_input(input_dir: str, override: Optional[str]) -> Optional[str]:
+    """Resolve the directory that still retains event weights.
+
+    When the evaluation runs on the lightweight skimmed parquet files (which
+    only carry the features needed for the DNN), we need to recover the
+    nominal weights from the original production parquet files. This helper
+    tries to locate them automatically, but also respects a user-specified
+    override.
+    """
+
+    if override:
+        return override
+
+    norm_in = os.path.normpath(input_dir)
+    year_token = os.path.basename(norm_in)
+    parent = os.path.basename(os.path.dirname(norm_in))
+    root = os.path.dirname(os.path.dirname(norm_in))
+
+    if parent != "skimmed_for_dnn":
+        return None
+
+    # Search a few known stage1 subdirectories (ordered by preference)
+    stage1_root = os.path.join(
+        root,
+        "copperheadV1clean",
+        "Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt",
+        "stage1_output",
+        year_token,
+    )
+
+    candidate_names = (
+        "compacted",
+        "compacted_19September_FixDimuonMass",
+        "compacted_03September_FixDimuonMass",
+        "compacted_13August_FixDimuonMass",
+    )
+
+    for name in candidate_names:
+        candidate = os.path.join(stage1_root, name)
+        if os.path.isdir(candidate):
+            return candidate
+
+    return None
+
+
+WEIGHT_DATA_DIR = _infer_weight_dir_from_input(INPUT_DIR, WEIGHT_INPUT_DIR)
+if WEIGHT_DATA_DIR and not os.path.isdir(WEIGHT_DATA_DIR):
+    print(
+        f"[yellow]WARN[/] Weight directory '{WEIGHT_DATA_DIR}' is not accessible; "
+        "disabling external weight recovery."
+    )
+    WEIGHT_DATA_DIR = None
 
 
 def load_features_from_json(path):
@@ -247,8 +345,197 @@ def _normalize_safe(h):
     if integ > 0:
         h.Scale(1.0 / integ)
 
+
+def _ak_to_numpy_column(array: ak.Array, name: str, default: float = np.nan) -> np.ndarray:
+    """Safely convert an Awkward column into a dense numpy array."""
+
+    if name in getattr(array, "fields", []):
+        try:
+            return ak.to_numpy(array[name])
+        except Exception:
+            return np.asarray(ak.flatten(array[name], axis=None))
+
+    return np.full(len(array), default, dtype=np.float64)
+
+
+def _discover_weight_files(base_dir: Optional[str], sample: str) -> List[str]:
+    if not base_dir:
+        return []
+
+    patterns = (
+        os.path.join(base_dir, sample, "*.parquet"),
+        os.path.join(base_dir, sample, "*", "*.parquet"),
+        os.path.join(base_dir, sample, "**", "*.parquet"),
+    )
+
+    for pat in patterns:
+        files = glob.glob(pat, recursive="**" in pat)
+        if files:
+            return sorted(files)
+
+    return []
+
+
+def _make_join_key(df: pd.DataFrame, columns: List[str], decimals: int) -> np.ndarray:
+    if df.empty:
+        return np.empty(0, dtype=np.uint64)
+
+    if not columns:
+        raise ValueError("At least one column is required to build a join key")
+
+    aligned = []
+    for col in columns:
+        if col not in df.columns:
+            raise KeyError(f"Join column '{col}' missing while aligning weights")
+        values = df[col].to_numpy()
+        if np.issubdtype(values.dtype, np.floating):
+            values = np.round(values.astype(np.float64, copy=False), decimals)
+        aligned.append(values)
+
+    stacked = np.column_stack(aligned)
+    hashed = pd.util.hash_pandas_object(
+        pd.DataFrame(stacked), index=False, categorize=False
+    )
+    return hashed.to_numpy(dtype=np.uint64)
+
+
+def _needs_weight_recovery(sample: str, weights: pd.Series) -> bool:
+    if "data" in sample.lower():
+        return False
+    if weights is None or weights.empty:
+        return True
+    if weights.isna().all():
+        return True
+    valid = weights.dropna()
+    if valid.empty:
+        return True
+    return np.allclose(valid.to_numpy(), 1.0)
+
+
+def _load_weight_frame(
+    sample: str,
+    tag: str,
+    vbf_filter: bool,
+    read_columns: List[str],
+) -> Optional[pd.DataFrame]:
+    files = _discover_weight_files(WEIGHT_DATA_DIR, sample)
+    if not files:
+        return None
+
+    cols = list(dict.fromkeys(read_columns + ["wgt_nominal"]))
+
+    try:
+        ddf = dak.from_parquet(files, columns=cols)
+    except Exception as exc:
+        print(
+            f"[yellow]WARN[/] {sample}: failed to read weight columns selectively "
+            f"({exc}); reading full schema instead."
+        )
+        ddf = dak.from_parquet(files)
+
+    ddf_sel = selection.applyRegionCatCuts(
+        ddf,
+        category=tag,
+        region_name="h-peak",
+        process=sample,
+        variation="nominal",
+        do_vbf_filter_study=vbf_filter,
+    )
+
+    ak_weight = ddf_sel.compute()
+    if len(ak_weight) == 0:
+        return pd.DataFrame(columns=cols)
+
+    keep_cols = [c for c in WEIGHT_JOIN_COLUMNS if c in ak_weight.fields]
+    data = {c: _ak_to_numpy_column(ak_weight, c) for c in keep_cols}
+    data["wgt_nominal"] = _ak_to_numpy_column(ak_weight, "wgt_nominal", default=1.0)
+    return pd.DataFrame(data)
+
+
+def _merge_weights(
+    sample: str,
+    df_eval: pd.DataFrame,
+    weight_df: pd.DataFrame,
+    decimals: int,
+) -> pd.DataFrame:
+    join_cols = [
+        c for c in WEIGHT_JOIN_COLUMNS if c in df_eval.columns and c in weight_df.columns
+    ]
+
+    if not join_cols:
+        print(
+            f"[yellow]WARN[/] {sample}: unable to find common columns to align "
+            "weights; keeping unity weights."
+        )
+        return df_eval
+
+    key_eval = _make_join_key(df_eval, join_cols, decimals)
+    key_weight = _make_join_key(weight_df, join_cols, decimals)
+    weight_values = weight_df["wgt_nominal"].to_numpy(dtype=np.float64, copy=False)
+
+    weight_map: dict[int, float] = {}
+    duplicates = 0
+    for key, value in zip(key_weight, weight_values):
+        if key in weight_map and not np.isclose(weight_map[key], value, rtol=1e-6, atol=1e-8):
+            duplicates += 1
+        weight_map.setdefault(key, value)
+
+    recovered = np.array([weight_map.get(k, np.nan) for k in key_eval], dtype=np.float64)
+    missing = np.count_nonzero(~np.isfinite(recovered))
+
+    if missing:
+        print(
+            f"[yellow]WARN[/] {sample}: missing weights for {missing} events; "
+            "defaulting those to 1.0"
+        )
+        recovered[~np.isfinite(recovered)] = 1.0
+
+    if duplicates:
+        print(
+            f"[yellow]WARN[/] {sample}: encountered {duplicates} duplicate join keys "
+            "while merging weights; kept the first occurrence."
+        )
+
+    df_eval["wgt_nominal"] = recovered
+    return df_eval
+
+
+def ensure_weight_column(
+    sample: str,
+    tag: str,
+    vbf_filter: bool,
+    read_columns: List[str],
+    df_eval: pd.DataFrame,
+) -> pd.DataFrame:
+    weights = df_eval.get("wgt_nominal", pd.Series(dtype=np.float64))
+    if WEIGHT_DATA_DIR is None:
+        return df_eval
+
+    if not _needs_weight_recovery(sample, weights):
+        return df_eval
+
+    weight_df = _load_weight_frame(sample, tag, vbf_filter, read_columns)
+    if weight_df is None or weight_df.empty:
+        print(
+            f"[yellow]WARN[/] {sample}: could not recover event weights; keeping unity values."
+        )
+        return df_eval
+
+    print(
+        f"[blue]INFO[/] {sample}: recovered weights from {WEIGHT_DATA_DIR}"
+    )
+    return _merge_weights(sample, df_eval, weight_df, WEIGHT_KEY_DECIMALS)
+
 # ================== MAIN ==================
 if __name__ == "__main__":
+    if WEIGHT_DATA_DIR:
+        print(f"[blue]INFO[/] Weight recovery directory: {WEIGHT_DATA_DIR}")
+    else:
+        print(
+            "[cyan]INFO[/] No auxiliary weight directory configured; "
+            "will rely on the weights stored alongside the evaluation parquet files."
+        )
+
     print("[bold]Loading model…[/]")
     model = load_model(MODEL_PATH)
 
@@ -287,7 +574,11 @@ if __name__ == "__main__":
         pat = os.path.join(INPUT_DIR, sample, "*.parquet")
         print(f"[bold blue]Processing[/] {sample}  (pattern: {pat})")
 
-        read_cols = list(dict.fromkeys(FEATURES + EXTRA_KEEP + ["process_ID"]))
+        read_cols = list(
+            dict.fromkeys(
+                FEATURES + EXTRA_KEEP + WEIGHT_JOIN_COLUMNS + ["process_ID"]
+            )
+        )
         try:
             ddf = dak.from_parquet(pat, columns=read_cols)
         except Exception as e:
@@ -302,22 +593,28 @@ if __name__ == "__main__":
 
         ak_array = ddf_sel_skim.compute()
 
-        def col_to_np(name):
-            if name in ak_array.fields:
-                try:
-                    return ak.to_numpy(ak_array[name])
-                except Exception:
-                    return np.asarray(ak.flatten(ak_array[name], axis=None))
-            return np.full(len(ak_array), np.nan, dtype=np.float64)
+        df_eval = pd.DataFrame(
+            {var: _ak_to_numpy_column(ak_array, var) for var in FEATURES}
+        )
+        for col_name in EXTRA_KEEP:
+            if col_name not in df_eval.columns:
+                df_eval[col_name] = _ak_to_numpy_column(ak_array, col_name)
 
-        df_eval = pd.DataFrame({var: col_to_np(var) for var in FEATURES})
-        for c in EXTRA_KEEP:
-            if c not in df_eval.columns:
-                df_eval[c] = col_to_np(c)
+        if "wgt_nominal" in df_eval.columns:
+            df_eval["wgt_nominal"] = pd.to_numeric(
+                df_eval["wgt_nominal"], errors="coerce"
+            )
+        else:
+            df_eval["wgt_nominal"] = np.nan
 
-        # --- Weight hygiene ---
-        if "wgt_nominal" not in df_eval.columns:
-            df_eval["wgt_nominal"] = 1.0
+        df_eval = ensure_weight_column(
+            sample=sample,
+            tag=tag,
+            vbf_filter=vbf_filter_bool,
+            read_columns=read_cols,
+            df_eval=df_eval,
+        )
+
         df_eval["wgt_nominal"] = (
             pd.to_numeric(df_eval["wgt_nominal"], errors="coerce")
             .fillna(1.0)

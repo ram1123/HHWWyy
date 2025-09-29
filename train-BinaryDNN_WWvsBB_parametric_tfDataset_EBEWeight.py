@@ -19,6 +19,7 @@ from sklearn.metrics import classification_report
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, Input
 from tensorflow.keras.callbacks import EarlyStopping, CSVLogger, LearningRateScheduler
+from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.optimizers import Nadam
 
@@ -71,7 +72,7 @@ METRICS = [
 ]
 
 
-def make_ebe_weights(df, col="dimuon_ebe_mass_res", power=2, clip=(1e-6, None)):
+def make_ebe_weights(df, col="dimuon_ebe_mass_res", power=1, clip=(1e-6, None)):
     s = df[col].astype("float32").to_numpy()
     if clip[0] is not None:
         s = np.maximum(s, clip[0])
@@ -165,9 +166,9 @@ def hyperparam_scan(X_train, Y_train, X_val, Y_val, input_dim, output_dir,
         model = make_model(cfg)
         callbacks = [
             EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
-            CSVLogger(os.path.join(args.output_dir, 'training.log')),
+            CSVLogger(os.path.join(output_dir, 'training.log')),
             LearningRateScheduler(custom_learning_rate_scheduler),
-            ModelCheckpoint(os.path.join(args.output_dir, 'model.best.keras'),
+            ModelCheckpoint(os.path.join(output_dir, 'model.best.keras'),
                             monitor='val_loss', save_best_only=True),
         ]
 
@@ -236,13 +237,14 @@ def build_model_hp(hp, input_dim, n_classes=3):
     return model
 
 
-def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=40, executions_per_trial=1, epochs=30, class_weight=None):
+def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=40, executions_per_trial=1, epochs=30, class_weight=None,
+batch_size=256):
 
     callbacks = [
         EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
-        CSVLogger(os.path.join(args.output_dir, 'training.log')),
+        CSVLogger(os.path.join(outdir, 'training.log')),
         LearningRateScheduler(custom_learning_rate_scheduler),
-        ModelCheckpoint(os.path.join(args.output_dir, 'model.best.keras'),
+        ModelCheckpoint(os.path.join(outdir, 'model.best.keras'),
                         monitor='val_loss', save_best_only=True),
     ]
 
@@ -469,6 +471,21 @@ def main():
     args.output_dir = os.path.join(args.output_dir, f"{args.job_name}")
     os.makedirs(args.output_dir, exist_ok=True)
 
+    # Step-0: Get the copy of this code and the input variables JSON into the output dir
+    this_file = Path(__file__).absolute()
+    os.system(f"cp {this_file} {args.output_dir}/")
+    os.system(f"cp {args.json} {args.output_dir}/")
+
+    # Keep some basic info about the run in a text file and store it to the output dir
+    with open(os.path.join(args.output_dir, "command.txt"), "w") as f:
+        f.write(f"Date: {CURRENT_DATETIME}\n")
+        f.write("Command run:\n")
+        f.write(" ".join(sys.argv) + "\n")
+        f.write("\n")
+    # save git patch
+    with open(os.path.join(args.output_dir, "git_patch.diff"), "w") as f:
+        f.write(os.popen("git diff").read())
+
     # Create list of headers for dataset .csv
     variables = []
     with open(args.json, "r") as f:
@@ -482,7 +499,7 @@ def main():
     scaler_cache = os.path.join(args.output_dir, "scaler.npz")
 
     # variables already built from JSON:
-    feature_columns = [col for col in variables if col not in ['target','process_ID','classweight']]
+    feature_columns = [col for col in variables if col not in ['target','process_ID']]
     print(f"Feature columns: {feature_columns}")
 
     if os.path.exists(npz_cache) and os.path.exists(scaler_cache) and (not args.retrain):

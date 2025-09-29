@@ -19,6 +19,7 @@ from sklearn.metrics import classification_report
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, Input
 from tensorflow.keras.callbacks import EarlyStopping, CSVLogger, LearningRateScheduler
+from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras.optimizers import Nadam
 
@@ -154,9 +155,9 @@ def hyperparam_scan(X_train, Y_train, X_val, Y_val, input_dim, output_dir,
         model = make_model(cfg)
         callbacks = [
             EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
-            CSVLogger(os.path.join(args.output_dir, 'training.log')),
+            CSVLogger(os.path.join(output_dir, 'training.log')),
             LearningRateScheduler(custom_learning_rate_scheduler),
-            ModelCheckpoint(os.path.join(args.output_dir, 'model.best.keras'),
+            ModelCheckpoint(os.path.join(output_dir, 'model.best.keras'),
                             monitor='val_loss', save_best_only=True),
         ]
 
@@ -225,13 +226,13 @@ def build_model_hp(hp, input_dim, n_classes=3):
     return model
 
 
-def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=40, executions_per_trial=1, epochs=30, class_weight=None):
+def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=40, executions_per_trial=1, epochs=30, class_weight=None, batch_size=256):
 
     callbacks = [
         EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
-        CSVLogger(os.path.join(args.output_dir, 'training.log')),
+        CSVLogger(os.path.join(outdir, 'training.log')),
         LearningRateScheduler(custom_learning_rate_scheduler),
-        ModelCheckpoint(os.path.join(args.output_dir, 'model.best.keras'),
+        ModelCheckpoint(os.path.join(outdir, 'model.best.keras'),
                         monitor='val_loss', save_best_only=True),
     ]
 
@@ -309,7 +310,6 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
         df = df.copy()
         df["target"] = meta["target"]
         df["process_ID"] = meta["process_ID"]
-        df["classweight"] = 1.0
         parts.append(df)
 
     if not parts:
@@ -487,7 +487,7 @@ def main():
     scaler_cache = os.path.join(args.output_dir, "scaler.npz")
 
     # variables already built from JSON:
-    feature_columns = [col for col in variables if col not in ['target','process_ID','classweight']]
+    feature_columns = [col for col in variables if col not in ['target','process_ID']]
     print(f"Feature columns: {feature_columns}")
 
     if os.path.exists(npz_cache) and os.path.exists(scaler_cache) and (not args.retrain):
@@ -516,8 +516,9 @@ def main():
         X[~np.isfinite(X)] = 0.0  # Replace NaN and inf with 0
 
         # 3) train/val split
-        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=7, stratify=y)
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=SEED, stratify=y)
 
+        # class weights
         class_ids = np.arange(Y_train.shape[1])
         class_weight_vals = compute_class_weight(
             class_weight='balanced',
@@ -571,6 +572,7 @@ def main():
                 executions_per_trial=args.executions_per_trial,
                 batch_size=args.batch_size,
                 epochs=args.epochs,
+                class_weight=class_weight,
             )
             print("Best HP:", best_hp.values)
             # also save a copy under the standard name
