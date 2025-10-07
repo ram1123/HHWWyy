@@ -79,6 +79,16 @@ def skim_for_dnn(input_root, out_root, feature_columns):
 
 input_root = "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2018/compacted/"
 out_root   = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/"
+
+input_root = "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2017/compacted/"
+out_root = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2017/"
+
+input_root = "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2016preVFP/compacted/"
+out_root = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2016preVFP/"
+
+input_root = "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/stage1_output/2016postVFP/compacted/"
+out_root = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2016postVFP/"
+
 feature_columns = [
     # exactly your training features:
     'mu1_eta','mu1_pt_over_mass','mu2_eta','mu2_pt_over_mass','dimuon_pt','dimuon_pt_log',

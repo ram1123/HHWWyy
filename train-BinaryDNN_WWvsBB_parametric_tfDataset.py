@@ -75,7 +75,9 @@ METRICS = [
 class BatchSizeTuner(kt.BayesianOptimization):
     def run_trial(self, trial, *args, **kwargs):
         hp = trial.hyperparameters
-        bs = hp.Choice("batch_size", [128, 256, 512])
+        bs = hp.Choice("batch_size", [512, 1024, 2048, 5120, 8192, 10240, 20480, 30720])
+        print(f"[tuner] trial {trial.trial_id} using batch size: {bs}")
+        # kwargs["batch_size"] = bs
 
         model = self.hypermodel.build(hp)
         history = model.fit(*args, batch_size=bs, **kwargs)
@@ -189,26 +191,32 @@ def hyperparam_scan(X_train, Y_train, X_val, Y_val, input_dim, output_dir,
 
 
 def build_model_hp(hp, input_dim, n_classes=3):
-    act = hp.Choice('activation', ['relu','gelu','swish'])              # ↑ added swish
-    depth = hp.Int('depth', 2, 5)                                       # 2–5 blocks
-    width = hp.Int('width', min_value=128, max_value=768, step=128)     # 128..768
-    dropout = hp.Float('dropout', 0.05, 0.40, step=0.05)                # 5%..40%
-    l2 = hp.Float('l2', 1e-6, 1e-3, sampling='log')                     # L2 reg
-    lr = hp.Float('lr', 3e-5, 2e-3, sampling='log')                     # LR (log)
-    final_width = hp.Choice('final_width', [32, 64, 96, 128])           # last hidden
-    bs = hp.Choice('batch_size', [128, 256, 512])
+    act = hp.Choice('activation', ['relu', 'gelu', 'swish'])
+    depth = hp.Int('depth', 2, 9)
+    width = hp.Int('width', min_value=128, max_value=2560, step=128)
+    dropout = hp.Float('dropout', 0.05, 0.40, step=0.05)  # 5%..40%
+    l2 = hp.Float('l2', 1e-6, 1e-3, sampling='log')  # L2 reg
+    lr = hp.Float('lr', 3e-5, 2e-3, sampling='log')  # LR (log)
+    bs = hp.Choice("batch_size", [512, 1024, 2048, 5120, 8192, 10240, 20480, 30720])
+
+    # Below two are there for the pyramid shape
+    peak_multiplier = hp.Float('peak_multiplier', 1.0, 5.0, step=0.5)
+    peak_at = hp.Int('peak_at', 1, depth)
+
 
     layers = [Input(shape=(input_dim,))]
-    for _ in range(depth):
+    for i in range(depth):
+        if i < peak_at:
+            width_i = int(width * (1 + (peak_multiplier - 1) * (i / peak_at)))
+        else:
+            width_i = int(width * (1 + (peak_multiplier - 1) * (1 - (i - peak_at) / (depth - peak_at))))
+        print(f'Layer {i}: width {width_i}')
         layers += [
-            Dense(width, activation=act, kernel_regularizer=regularizers.l2(l2)),
+            Dense(width_i, activation=act, kernel_regularizer=regularizers.l2(l2)),
             BatchNormalization(),
             Dropout(dropout),
         ]
-    layers += [
-        Dense(final_width, activation=act, kernel_regularizer=regularizers.l2(l2)),
-        Dense(n_classes, activation='softmax')
-    ]
+    layers += [Dense(n_classes, activation='softmax')]
     model = Sequential(layers)
 
     opt = Nadam(learning_rate=lr, clipnorm=1.0)  # stable default
@@ -275,7 +283,12 @@ def run_bayes_opt(X_train, Y_train, X_val, Y_val, input_dim, outdir, max_trials=
     return best_model, history, best_hp
 
 def _read_proc_ddf(base, proc, variables):
-    pat = os.path.join(base, proc, "*.parquet")
+    # base is of type path
+    base = Path(base)
+    print(f"Reading process: {proc}")
+    print(f"Reading path: {base}")
+    # pat = os.path.join(base, "/**/", proc, "*.parquet")
+    pat = str(base / "**" / proc / "*.parquet")
     print(f"Reading parquet files from: {pat}")
     # print
     return dd.read_parquet(pat, columns=variables)
@@ -459,10 +472,15 @@ def main():
     args.output_dir = os.path.join(args.output_dir, f"{args.job_name}")
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Step-0: Get the copy of this code and the input variables JSON into the output dir
-    this_file = Path(__file__).absolute()
-    os.system(f"cp {this_file} {args.output_dir}/")
-    os.system(f"cp {args.json} {args.output_dir}/")
+    # Step-0: Get the copy of this code and the input variables JSON into the output dir. The name of files should be appended with the current date and time.
+    code_path = Path(__file__).resolve()
+    code_copy_path = os.path.join(args.output_dir, f"{code_path.stem}_{CURRENT_DATETIME.strftime('%Y%m%d_%H%M%S')}{code_path.suffix}")
+    os.system(f"cp {code_path} {code_copy_path}")
+    print(f"Copied code to: {code_copy_path}")
+
+    json_copy_path = os.path.join(args.output_dir, f"{Path(args.json).stem}_{CURRENT_DATETIME.strftime('%Y%m%d_%H%M%S')}{Path(args.json).suffix}")
+    os.system(f"cp {args.json} {json_copy_path}")
+    print(f"Copied JSON to: {json_copy_path}")
 
     # Keep some basic info about the run in a text file and store it to the output dir
     with open(os.path.join(args.output_dir, "command.txt"), "w") as f:
@@ -642,18 +660,19 @@ def main():
         # fallback to CSV log produced in a previous run
         plot_training_progress_from_csv(csv_log, plots_dir)
 
-    plot_metrics(history, plots_dir, csv_log)
-    plot_overfitting_multiclass(model = model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
-    plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
+    if 1:  # extra plots (commented out for now)
+        plot_metrics(history, plots_dir, csv_log)
+        plot_overfitting_multiclass(model = model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
+        plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
 
-    # Confusion Matrix
-    plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
+        # Confusion Matrix
+        plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
 
-    plot_correlation_matrix(X_train, plots_dir, feature_columns)
-
-    # plot shap values
-    # This is just commented out for now since it takes a long time to run
-    # plot_shap_values(model, X_train, feature_columns, plots_dir)
+        plot_correlation_matrix(X_train, plots_dir, feature_columns)
+    else:
+        # plot shap values
+        # This is just commented out for now since it takes a long time to run
+        plot_shap_values(model, X_train, feature_columns, plots_dir)
 
 
 if __name__ == "__main__":

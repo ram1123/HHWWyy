@@ -236,7 +236,7 @@ def plot_shap_values(model, X_sample, feature_columns, output_dir):
         "Mismatch between the number of feature names and the input features!"
     )
 
-    X_sample = X_sample[:21000]
+    X_sample = X_sample[:11000]
     # Initialize the SHAP explainer
     explainer = shap.Explainer(model, X_sample)  # Use a subset for background data
     shap_values = explainer(X_sample)

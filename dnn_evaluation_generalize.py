@@ -20,30 +20,37 @@ import selection  # your module
 INPUT_DIR = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/"
 FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_variables.json"
 
-# With both EBE mass res inputs
-MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/"
+# # With both EBE mass res inputs
+# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/"
 
-# Removed both EBE mass res inputs
-MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBE/"
+# # Removed both EBE mass res inputs
+# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBE/"
 
-# With class weights only to fix the imbalance in training
-MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2/"
+# # With class weights only to fix the imbalance in training
+# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2/"
 
-# No EBE mass res inputs, With sample weights to fix the imbalance in training (sample weight takes class weight into account)
-MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2_SampleWgt/"
+# # No EBE mass res inputs, With sample weights to fix the imbalance in training (sample weight takes class weight into account)
+# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2_SampleWgt/"
 
-# With class weight and with relative EBE mass res as input
-MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_relativeEBEonly/"
+# # With class weight and with relative EBE mass res as input
+# MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_relativeEBEonly/"
 
-# Without class weight and with relative EBE mass res as input
-MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_relativeEBEonly_NoClassWgt/"
+# # Without class weight and with relative EBE mass res as input
+# MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_relativeEBEonly_NoClassWgt/"
 
-# With class weight and with absolute EBE mass res and relative EBE mass res as input
-MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_BothEBE_WithClassWgt/"
+# # With class weight and with absolute EBE mass res and relative EBE mass res as input
+# MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_BothEBE_WithClassWgt/"
+
+
+# # With class weight and both relative and absolute EBE mass res as input
+MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_BothEBE_WithClassWgt/"
+
+# # With class weight and only relative EBE mass res as input
+MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_relEBE_WithClassWgt/"
 
 SCALER_NPZ = f"{MODEL_DIR}/scaler.npz"
 MODEL_PATH = f"{MODEL_DIR}/model.keras"
-OUT_DIR = f"{MODEL_DIR}/tag_fractions_NewCode"
+OUT_DIR = f"{MODEL_DIR}/tag_fractions"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Optional secondary input with event weights. When left as None, the code will
@@ -77,11 +84,11 @@ SAMPLES = {
     "ggh_powhegPS": ("notbtag", False),
     "vbf_powheg_dipole": ("notbtag", False),
     "dy_VBF_filter": ("notbtag", True),
-    "dy_M-100To200_MiNNLO": ("notbtag", True),
-    "dy_M-50_MiNNLO": ("notbtag", True),
-    "ewk_lljj_mll50_mjj120": ("notbtag", False),
-    "ttjets_dl": ("notbtag", False),
-    "ttjets_sl": ("notbtag", False),
+    # "dy_M-100To200_MiNNLO": ("notbtag", True),
+    # "dy_M-50_MiNNLO": ("notbtag", True),
+    # "ewk_lljj_mll50_mjj120": ("notbtag", False),
+    # "ttjets_dl": ("notbtag", False),
+    # "ttjets_sl": ("notbtag", False),
 }
 
 # ===== Variables & cuts to scan =====
@@ -96,13 +103,13 @@ VAR_SPECS = [
     # ("dimuon_pt", "p_{T}(#mu#mu) [GeV]", (40, 0, 200)),
     # ("dimuon_rapidity", "y(#mu#mu)", (40, -5, 5)),
     # ("dimuon_eta", "#eta(#mu#mu)", (40, -5, 5)),
-    # ("dimuon_ebe_mass_res", "Event-by-event mass resolution [GeV]", (40, 0, 10)),
-    # ("dimuon_ebe_mass_res_rel", "Relative event-by-event mass resolution", (40, 0, 0.1)),
+    ("dimuon_ebe_mass_res", "Event-by-event mass resolution [GeV]", (40, 0, 10)),
+    ("dimuon_ebe_mass_res_rel", "Relative event-by-event mass resolution", (40, 0, 0.1)),
     # ("jj_mass_nominal", "m_{jj} [GeV]", (40, 0, 2000)),
     # ("jj_dEta_nominal", "#Delta#eta_{jj}", (40, 0, 10)),
 ]
 
-DNN_CUTS = [0.50, 0.65, 0.75, 0.80, 0.85, 0.90]
+DNN_CUTS = [0.50, 0.65, 0.75, 0.80, 0.85, 0.90, 0.95]
 SCORE_COL = "score_vbf"    # change to "score_ggh_over_sigbkg" if desired
 PLOT_COMPLEMENT = True
 NORM_TO_UNIT_AREA = True
