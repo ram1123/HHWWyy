@@ -114,82 +114,6 @@ def load_best_hp_json(outdir):
             return json.load(f)
     return None
 
-
-def hyperparam_scan(X_train, Y_train, X_val, Y_val, input_dim, output_dir,
-                    trials=8, epochs=10, batch_size=256, class_weight=None):
-    """
-    Lightweight random search over a small grid. Returns (best_model, best_hist, best_cfg).
-    """
-    import itertools, random
-    os.makedirs(output_dir, exist_ok=True)
-
-    activations   = ['relu', 'gelu']
-    dropouts      = [0.1, 0.2, 0.3]
-    learn_rates   = [1e-4, 3e-4, 1e-3]
-    widths        = [256, 384]
-    depths        = [2, 3]  # number of hidden blocks before the final 64
-
-    def make_model(cfg):
-        act, dr, lr, width, depth = cfg
-        layers = [Input(shape=(input_dim,))]
-        for _ in range(depth):
-            layers += [Dense(width, activation=act), BatchNormalization(), Dropout(dr)]
-        layers += [Dense(64, activation=act), Dense(3, activation='softmax')]
-        m = Sequential(layers)
-        opt = Nadam(learning_rate=lr, clipnorm=1.0)
-        m.compile(optimizer=opt,
-                  loss=tf.keras.losses.CategoricalCrossentropy(),
-                  metrics=METRICS)
-        return m
-
-    space = list(itertools.product(activations, dropouts, learn_rates, widths, depths))
-    random.shuffle(space)
-    space = space[:trials]
-
-    best = None
-    best_hist = None
-    best_cfg = None
-
-    for i, cfg in enumerate(space, 1):
-        act, dr, lr, width, depth = cfg
-        print(f"[scan {i}/{len(space)}] act={act} dr={dr} lr={lr} width={width} depth={depth}")
-
-        model = make_model(cfg)
-        callbacks = [
-            EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
-            CSVLogger(os.path.join(output_dir, 'training.log')),
-            LearningRateScheduler(custom_learning_rate_scheduler),
-            ModelCheckpoint(os.path.join(output_dir, 'model.best.keras'),
-                            monitor='val_loss', save_best_only=True),
-        ]
-
-        hist = model.fit(
-            X_train, Y_train,
-            validation_data=(X_val, Y_val),
-            epochs=epochs,
-            batch_size=batch_size,
-            verbose=0,
-            callbacks=callbacks,
-            class_weight=class_weight,
-        )
-
-        # Use val_loss, with val_auc as tiebreaker
-        val_loss = np.min(hist.history['val_loss'])
-        val_auc  = np.max(hist.history.get('val_auc', [0.0]))
-        score = (val_loss, -val_auc)
-
-        if (best is None) or (score < best[0]):
-            best = (score, model)
-            best_hist = hist
-            best_cfg = dict(activation=act, dropout=dr, learn_rate=lr, width=width, depth=depth)
-
-    print("[scan] best:", best_cfg)
-    # save best config for reproducibility
-    with open(os.path.join(output_dir, "best_hparams.json"), "w") as f:
-        json.dump(best_cfg, f, indent=2)
-    return best[1], best_hist, best_cfg
-
-
 def build_model_hp(hp, input_dim, n_classes=3):
     act = hp.Choice('activation', ['relu', 'gelu', 'swish'])
     depth = hp.Int('depth', 2, 9)
@@ -352,34 +276,6 @@ def save_scaler_npz(path, scaler, feature_names):
     )
     print(f"[cache] saved scaler: {path}")
 
-def load_scaler_npz(path):
-    z = np.load(path, allow_pickle=False)
-    return dict(mean=z["mean"], scale=z["scale"], var=z["var"], features=z["features"])
-
-
-# Ensure input data is numeric and clean
-def preprocess_data(data, exclude_columns=[]):
-    """
-    Added exclude columns to avoid scaling the mass column, as
-    it is a categorical variable and should not be scaled.
-    """
-    # Replace NaN or infinite values with a default (e.g., 0 or mean)
-    data = data.replace([np.inf, -np.inf], np.nan)  # Replace infinities with NaN
-    data = data.fillna(0)  # Replace NaN with 0 (or use column mean if needed)
-    if exclude_columns:
-        cols_to_scale = [col for col in data.columns if col not in exclude_columns]
-        # Scale only the columns present in cols_to_scale
-        scaled_df = pd.DataFrame(scaler.fit_transform(data[cols_to_scale]), columns=cols_to_scale)
-        # Reattach the excluded columns with their original values
-        for col in exclude_columns:
-            scaled_df[col] = data[col].values
-        # Reorder columns to match the original order
-        scaled_df = scaled_df[data.columns]
-    else:
-        scaled_df = pd.DataFrame(scaler.fit_transform(data), columns=data.columns)
-    return scaled_df.astype('float32')
-
-
 # Custom learning rate scheduler
 def custom_learning_rate_scheduler(epoch, lr):
     warmup_epochs = 3
@@ -452,8 +348,6 @@ def main():
     parser.add_argument('--max_trials', type=int, default=40, help='Bayesian max trials.')
     parser.add_argument('--executions_per_trial', type=int, default=1, help='KerasTuner executions per trial (average).')
     args = parser.parse_args()
-
-
 
     # if args.use_gateway:
     #     from dask_gateway import Gateway
