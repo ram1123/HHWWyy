@@ -52,7 +52,7 @@ tf.random.set_seed(SEED)
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
 
 # Initialize StandardScaler
-scaler = StandardScaler()
+# scaler = StandardScaler()
 
 # Set TensorFlow and Matplotlib configurations
 os.environ['MPLCONFIGDIR'] = tempfile.mkdtemp()
@@ -65,7 +65,7 @@ CURRENT_DATETIME = datetime.now()
 # Metrics for evaluation
 METRICS = [
     tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-    tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=3),
+    tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=5),
     tf.keras.metrics.Precision(name="precision", top_k=1),
     tf.keras.metrics.Recall(name="recall", top_k=1),
     tf.keras.metrics.CategoricalCrossentropy(name="crossentropy"),
@@ -99,7 +99,7 @@ class BatchSizeTuner(kt.BayesianOptimization):
         model.save(path)
 
 
-def build_model_from_hp_values(hp_values, input_dim, n_classes=3):
+def build_model_from_hp_values(hp_values, input_dim, n_classes=5):
     # Turn a dict of fixed values into a HyperParameters object
     hp = kt.HyperParameters()
     for k, v in hp_values.items():
@@ -114,7 +114,7 @@ def load_best_hp_json(outdir):
             return json.load(f)
     return None
 
-def build_model_hp(hp, input_dim, n_classes=3):
+def build_model_hp(hp, input_dim, n_classes=5):
     act = hp.Choice('activation', ['relu', 'gelu', 'swish'])
     depth = hp.Int('depth', 2, 9)
     width = hp.Int('width', min_value=128, max_value=2560, step=128)
@@ -123,17 +123,15 @@ def build_model_hp(hp, input_dim, n_classes=3):
     lr = hp.Float('lr', 3e-5, 2e-3, sampling='log')  # LR (log)
     bs = hp.Choice("batch_size", [512, 1024, 2048, 5120, 8192, 10240, 20480, 30720])
 
-    # Below two are there for the pyramid shape
-    peak_multiplier = hp.Float('peak_multiplier', 1.0, 5.0, step=0.5)
-    peak_at = hp.Int('peak_at', 1, depth)
+    # Below two are there for the pyramid shape, having decreasing widths
+    decay_rate = hp.Float('decay_rate', 0.65, 0.95, step=0.05)  # width decay rate per layer
+    min_width = hp.Int('min_width', 32, 256, step=32)  # minimum width
 
+    print(f"[tuner] using batch size: {bs}, depth: {depth}, width: {width}, dropout: {dropout:.3f}, l2: {l2:.1e}, lr: {lr:.1e}, act: {act}, decay_rate: {decay_rate:.2f}, min_width: {min_width}")
 
     layers = [Input(shape=(input_dim,))]
     for i in range(depth):
-        if i < peak_at:
-            width_i = int(width * (1 + (peak_multiplier - 1) * (i / peak_at)))
-        else:
-            width_i = int(width * (1 + (peak_multiplier - 1) * (1 - (i - peak_at) / (depth - peak_at))))
+        width_i = max(int(width * (decay_rate ** i)), min_width)
         print(f'Layer {i}: width {width_i}')
         layers += [
             Dense(width_i, activation=act, kernel_regularizer=regularizers.l2(l2)),
@@ -149,7 +147,7 @@ def build_model_hp(hp, input_dim, n_classes=3):
         loss=tf.keras.losses.CategoricalCrossentropy(),
         metrics=[
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-            tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=3),
+            tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=5),
             tf.keras.metrics.Precision(name="precision", top_k=1),
             tf.keras.metrics.Recall(name="recall", top_k=1),
             tf.keras.metrics.CategoricalCrossentropy(name="crossentropy"),
@@ -212,7 +210,9 @@ def _read_proc_ddf(base, proc, variables):
     print(f"Reading process: {proc}")
     print(f"Reading path: {base}")
     # pat = os.path.join(base, "/**/", proc, "*.parquet")
-    pat = str(base / "**" / proc / "*.parquet")
+    year = "**"
+    year = 2017
+    pat = str(base / year / proc / "*.parquet")
     print(f"Reading parquet files from: {pat}")
     # print
     return dd.read_parquet(pat, columns=variables)
@@ -223,17 +223,17 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
     takes up to num_events rows per process, returns (X, y) as numpy arrays.
     """
     specs = {
-        "ggh_powhegPS": dict(target=0, process_ID="ggh"),
-        "vbf_powheg_dipole": dict(target=1, process_ID="vbf"),
+        "vbf_powheg_dipole": dict(target=0, process_ID="vbf"),
+        "ggh_powhegPS": dict(target=1, process_ID="ggh"),
 
-        "dy_VBF_filter": dict(target=2, process_ID="bkg"),
-        "dy_M-100To200_MiNNLO": dict(target=2, process_ID="bkg"),
-        "dy_M-50_MiNNLO": dict(target=2, process_ID="bkg"),
+        "dy_VBF_filter": dict(target=2, process_ID="DY"),
+        "dy_M-100To200_MiNNLO": dict(target=2, process_ID="DY"),
+        "dy_M-50_MiNNLO": dict(target=2, process_ID="DY"),
 
-        "ewk_lljj_mll50_mjj120": dict(target=2, process_ID="bkg"),
+        "ewk_lljj_mll50_mjj120": dict(target=3, process_ID="EWK"),
 
-        "ttjets_dl": dict(target=2, process_ID="bkg"),
-        "ttjets_sl": dict(target=2, process_ID="bkg"),
+        "ttjets_dl": dict(target=4, process_ID="TOP"),
+        "ttjets_sl": dict(target=4, process_ID="TOP"),
     }
     parts = []
     for proc, meta in specs.items():
@@ -247,11 +247,30 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
         df = df.copy()
         df["target"] = meta["target"]
         df["process_ID"] = meta["process_ID"]
+
+        # ---- 1) Add missingness indicators from jet multiplicity ----
+        # These are the key, compact indicators:
+        df["has_jet1"]  = (df["njets_nominal"] >= 1).astype("int8")
+        df["has_jet2"]  = (df["njets_nominal"] >= 2).astype("int8")
+        df["has_dijet"] = (df["njets_nominal"] >= 2).astype("int8")  # dijet defined iff >=2 jets
+
+        # Optional (often helpful): one-hot jet multiplicity
+        df["is_njet0"]  = (df["njets_nominal"] == 0).astype("int8")
+        df["is_njet1"]  = (df["njets_nominal"] == 1).astype("int8")
+        df["is_njet2p"] = (df["njets_nominal"] >= 2).astype("int8")
+
+
         parts.append(df)
+
+
+    indicator_cols = ["has_jet1","has_jet2","has_dijet","is_njet0","is_njet1","is_njet2p"]
 
     if not parts:
         raise RuntimeError("No data loaded from parquet. Check paths/variables.")
     df_all = pd.concat(parts, ignore_index=True)
+
+    variables += indicator_cols
+
 
     X = df_all[variables].to_numpy(dtype=np.float32)
     y = df_all["target"].to_numpy(dtype=np.int64)
@@ -285,7 +304,7 @@ def custom_learning_rate_scheduler(epoch, lr):
 
 
 # Function to build the multi-class DNN model
-def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001):
+def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001, n_classes=5):
     model = Sequential([
         Dense(256, input_shape=(input_dim,), activation=activation),
         BatchNormalization(),
@@ -294,7 +313,7 @@ def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001
         BatchNormalization(),
         Dropout(dropout_rate),
         Dense(64, activation=activation),
-        Dense(3, activation="softmax")  # 3-class classification
+        Dense(n_classes, activation="softmax")  # n_classes classification
     ])
 
     opt = Nadam(learning_rate=learn_rate, clipnorm=1.0)  # Gradient clipping to prevent exploding gradients
@@ -402,6 +421,9 @@ def main():
     feature_columns = [col for col in variables if col not in ['target','process_ID']]
     print(f"Feature columns: {feature_columns}")
 
+    n_classes = 5  # vbf, ggh, DY, EWK, TOP
+    CLASS_LABELS = ["vbf", "ggh", "DY", "EWK", "TOP"]
+
     if os.path.exists(npz_cache) and os.path.exists(scaler_cache) and (not args.retrain):
         print(f"[cache] loading arrays from {npz_cache}")
         data = load_npz_dataset(npz_cache)
@@ -421,14 +443,49 @@ def main():
         X, y = load_from_parquet_to_numpy(args.inputPath, feature_columns, args.num_events)
 
         # 2) one-hot labels
-        n_classes = 3
         Y = np.eye(n_classes, dtype=np.float32)[y]
 
-        X = np.asarray(X, dtype=np.float32)
-        X[~np.isfinite(X)] = 0.0  # Replace NaN and inf with 0
+        # X = np.asarray(X, dtype=np.float32)
+        # # Replace -999 or -99 with -9
+        # # Replace NaN and inf with -9
+        X[~np.isfinite(X)] = -9.0
+        X[X == -999.0] = -9.0
+        X[X == -99.0] = -9.0
+
+        # is there any feature with value <= -9?
+        for i, col in enumerate(feature_columns):
+            if np.any(X[:, i] <= -9):
+                print(f"[warn] Feature {col} has values <= -9. Consider checking for missing values.")
+
+        print("X shape:", X.shape, "y shape:", y.shape, "Y shape:", Y.shape)
+        print(Y)
+
+        # plot the distribution for reach feature before scaling and after scaling and save it in one pdf file
+        if 1:
+            n_features = X.shape[1]
+            n_cols = 4
+            n_rows = (n_features + n_cols - 1) // n_cols
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3*n_rows))
+            axes = axes.flatten()
+            for i in range(n_features):
+                axes[i].hist(X[:, i], bins=50, alpha=0.7, color='blue', label='Before Scaling')
+                axes[i].set_title(f'Feature {feature_columns[i]}')
+                axes[i].set_xlabel('Value')
+                axes[i].set_ylabel('Frequency')
+                axes[i].legend()
+            for i in range(n_features, len(axes)):
+                fig.delaxes(axes[i])  # Remove unused subplots
+            plt.tight_layout()
+            plt.savefig(os.path.join(args.output_dir, 'feature_distributions_before_scaling.pdf'))
+            plt.close()
 
         # 3) train/val split
         X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, random_state=SEED, stratify=y)
+
+        # print("After split:")
+        # print("X_train shape:", X_train.shape, "X_val shape:", X_val.shape)
+        # print("Y_train shape:", Y_train.shape, "Y_val shape:", Y_val.shape)
+        # print(Y_train)
 
         # class weights
         class_ids = np.arange(Y_train.shape[1])
@@ -441,18 +498,39 @@ def main():
         print(f"class weights: {class_weight}")
 
         # 4) scale (fit on train only), but DO NOT scale any special categorical column (if you add one later)
-        X_train_df = pd.DataFrame(X_train, columns=feature_columns)
-        X_val_df   = pd.DataFrame(X_val,   columns=feature_columns)
-        X_train = scaler.fit_transform(X_train_df).astype(np.float32)
-        X_val   = scaler.transform(X_val_df).astype(np.float32)
+        # X_train_df = pd.DataFrame(X_train, columns=feature_columns)
+        # X_val_df   = pd.DataFrame(X_val,   columns=feature_columns)
+        # X_train = scaler.fit_transform(X_train_df).astype(np.float32)
+        # X_val   = scaler.transform(X_val_df).astype(np.float32)
 
-        # guard against zero-variance columns causing Inf
-        X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
-        X_val   = np.nan_to_num(X_val,   nan=0.0, posinf=0.0, neginf=0.0)
+        # # guard against zero-variance columns causing Inf
+        # X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)
+        # X_val   = np.nan_to_num(X_val,   nan=0.0, posinf=0.0, neginf=0.0)
 
+        # plot each feature after scaling and save it in one pdf file
+        # if 1:
+        #     n_features = X_train.shape[1]
+        #     n_cols = 4
+        #     n_rows = (n_features + n_cols - 1) // n_cols
+        #     fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3*n_rows))
+        #     axes = axes.flatten()
+        #     for i in range(n_features):
+        #         axes[i].hist(X_train[:, i], bins=50, alpha=0.7, color='green', label='After Scaling')
+        #         axes[i].set_title(f'Feature {feature_columns[i]}')
+        #         axes[i].set_xlabel('Value')
+        #         axes[i].set_ylabel('Frequency')
+        #         axes[i].legend()
+        #     for i in range(n_features, len(axes)):
+        #         fig.delaxes(axes[i])  # Remove unused subplots
+        #     plt.tight_layout()
+        #     plt.savefig(os.path.join(args.output_dir, 'feature_distributions_after_scaling.pdf'))
+        #     plt.close()
+        #     #
+
+        # sys.exit()
         # 5) save arrays + scaler
         save_npz_dataset(npz_cache, X_train=X_train, X_val=X_val, Y_train=Y_train, Y_val=Y_val, features=np.array(feature_columns))
-        save_scaler_npz(scaler_cache, scaler, feature_columns)
+        # save_scaler_npz(scaler_cache, scaler, feature_columns)
 
     print("X_train shape:", X_train.shape, "X_val shape:", X_val.shape)
 
@@ -492,7 +570,11 @@ def main():
         else:
             if best_hp_vals is not None:
                 print("[bayes] Using last saved best hyperparameters from JSON.")
+                print(best_hp_vals)
+
                 model = build_model_from_hp_values(best_hp_vals, input_dim=X_train.shape[1], n_classes=Y_train.shape[1])
+                model.summary()
+
                 tuned_bs = int(best_hp_vals.get("batch_size", args.batch_size))
                 callbacks = [
                     EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
@@ -534,11 +616,11 @@ def main():
 
     print("="*40)
     print("Classification report:")
-    print(classification_report(y_true, y_pred, target_names=['ggh','vbf','bkg'], digits=3))
+    print(classification_report(y_true, y_pred, target_names=CLASS_LABELS, digits=3))
     print("="*40)
 
     # ROC Curve
-    plot_roc_curve_multiclass(Y_val, y_prob, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
+    plot_roc_curve_multiclass(Y_val, y_prob, plots_dir, labels=CLASS_LABELS, mass=None)
 
     # Classification Report
     plot_classifier_output(model, X_train, Y_train, X_val, Y_val, output_dir=plots_dir, mass=None)
@@ -554,19 +636,17 @@ def main():
         # fallback to CSV log produced in a previous run
         plot_training_progress_from_csv(csv_log, plots_dir)
 
-    if 1:  # extra plots (commented out for now)
-        plot_metrics(history, plots_dir, csv_log)
-        plot_overfitting_multiclass(model = model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
-        plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=["ggh", "vbf", "bkg"], output_dir=plots_dir)
+    plot_metrics(history, plots_dir, csv_log)
+    # plot_overfitting_multiclass(model = model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, class_labels=CLASS_LABELS, output_dir=plots_dir)
+    plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=CLASS_LABELS, output_dir=plots_dir)
 
-        # Confusion Matrix
-        plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=["ggh", "vbf", "bkg"], mass=None)
+    # Confusion Matrix
+    plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=CLASS_LABELS, mass=None)
 
-        plot_correlation_matrix(X_train, plots_dir, feature_columns)
-    else:
-        # plot shap values
-        # This is just commented out for now since it takes a long time to run
-        plot_shap_values(model, X_train, feature_columns, plots_dir)
+    # plot_correlation_matrix(X_train, plots_dir, feature_columns)
+
+    # plot shap values
+    plot_shap_values(model, X_train[:11000], feature_columns, plots_dir, max_display=15)
 
 
 if __name__ == "__main__":

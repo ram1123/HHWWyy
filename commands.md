@@ -1,7 +1,20 @@
+
+# 09 October 2024
+
+```bash
+time python train-multiclassDNN.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name Run2_DNN_relEBE_WithClassWgt_NoScaling_5Classes --epochs 100
+```
+
+# 08 October 2024
+
+```bash
+time python train-multiclassDNN.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/test/  --num_events 0 --job_name test --epochs 10 --retrain
+```
+
 # 06 October 2024
 
 ```bash
-time python train-BinaryDNN_WWvsBB_parametric_tfDataset.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name Run2_DNN_relEBE_WithClassWgt --epochs 100 --bayes --max_trials 11 --executions_per_trial 1 2>&1 | tee  -a log_DNN_relEBE_WithClassWgt_allyears.log
+time python train-multiclassDNN.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --num_events 0 --job_name Run2_DNN_relEBE_WithClassWgt_NoScaling --epochs 100 --bayes --max_trials 5 --executions_per_trial 1 2>&1 | tee  -a Run2_DNN_relEBE_WithClassWgt_NoScaling.log
 ```
 
 # 27 September 2024

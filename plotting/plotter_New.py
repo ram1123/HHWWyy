@@ -215,7 +215,7 @@ def plot_roc_curve_multiclass(y_true, y_score, output_dir, labels, mass=None):
 #     plt.close()
 #     print(f"ROC curve saved  to: {plot_path}")
 
-def plot_shap_values(model, X_sample, feature_columns, output_dir):
+def plot_shap_values(model, X_sample, feature_columns, output_dir, max_display=15):
     """
     Plot SHAP values for multi-class model predictions.
 
@@ -236,7 +236,6 @@ def plot_shap_values(model, X_sample, feature_columns, output_dir):
         "Mismatch between the number of feature names and the input features!"
     )
 
-    X_sample = X_sample[:11000]
     # Initialize the SHAP explainer
     explainer = shap.Explainer(model, X_sample)  # Use a subset for background data
     shap_values = explainer(X_sample)
@@ -257,13 +256,13 @@ def plot_shap_values(model, X_sample, feature_columns, output_dir):
             feature_names=feature_columns,      # Feature names
             show=False,
             plot_type='bar',
-            max_display=15   # 👈 Only show top 10 features
+            max_display=max_display   # Only show top 15 features
 
         )
 
         # Save the plot
         class_label = class_names[class_idx].replace(" ", "_")  # Replace spaces with underscores
-        output_path = f"{output_dir}/shap_summary_plot_class_{class_label}_top15.pdf"
+        output_path = f"{output_dir}/shap_summary_plot_class_{class_label}_top{max_display}.pdf"
         plt.tight_layout()
         plt.savefig(output_path)
         plt.close()
@@ -414,9 +413,9 @@ def plot_classifier_output(model, X_train, Y_train, X_test, Y_test, output_dir, 
 
     # Map class indices to desired comparisons
     comparisons = {
-        "ggH vs Background": (0, 2),
-        "VBF vs Background": (1, 2),
-        "ggH vs VBF": (0, 1)
+        "ggH vs Background": (1, 2),
+        "VBF vs Background": (0, 2),
+        "ggH vs VBF": (1, 0)
     }
 
     for plot_title, (signal_idx, background_idx) in comparisons.items():

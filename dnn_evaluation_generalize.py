@@ -11,6 +11,7 @@ import pandas as pd
 import awkward as ak
 import dask_awkward as dak
 from tensorflow.keras.models import load_model
+from tensorflow.keras.utils import plot_model
 from rich import print
 from typing import List, Optional
 
@@ -43,7 +44,7 @@ FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_va
 
 
 # # With class weight and both relative and absolute EBE mass res as input
-MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_BothEBE_WithClassWgt/"
+# MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_BothEBE_WithClassWgt/"
 
 # # With class weight and only relative EBE mass res as input
 MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_relEBE_WithClassWgt/"
@@ -545,6 +546,16 @@ if __name__ == "__main__":
 
     print("[bold]Loading model…[/]")
     model = load_model(MODEL_PATH)
+
+    # print model summary:
+    print('#---------------------------------------------------------------#')
+    model.summary()
+    print('#---------------------------------------------------------------#')
+    model_schematic_name = 'model_schematic.pdf'
+    plot_model(model, to_file=model_schematic_name, show_shapes=True,
+                    show_layer_names=True, rankdir='TB', expand_nested=True, dpi=96) # rankdir='LR' for horizontal plot
+
+    sys.exit(0)
 
     sc_npz = np.load(SCALER_NPZ)
     mean = sc_npz.get("mean_", sc_npz.get("mean"))

@@ -30,7 +30,5 @@
     "mmj_min_dEta_nominal": "\"F\"",
     "mmj_min_dPhi_nominal": "\"F\"",
     "ll_zstar_log_nominal": "\"F\"",
-    "pt_centrality_nominal": "\"F\"",
-    "zeppenfeld_nominal": "\"F\"",
     "year": "\"F\""
 }
