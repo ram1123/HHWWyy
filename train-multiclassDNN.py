@@ -51,6 +51,37 @@ np.random.seed(SEED)
 tf.random.set_seed(SEED)
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
 
+NUM_CLASSES = 3 # vbf, ggh, bkg (DY+EWK+TOP)
+
+if NUM_CLASSES == 3:
+    CLASS_LABELS = ["vbf", "ggh", "bkg"]
+elif NUM_CLASSES == 5:
+    CLASS_LABELS = ["vbf", "ggh", "DY", "EWK", "TOP"]
+else:
+    raise RuntimeError("NUM_CLASSES must be 3 or 5")
+
+specs_5Classes = {
+    "vbf_powheg_dipole": dict(target=0, process_ID="vbf"),
+    "ggh_powhegPS": dict(target=1, process_ID="ggh"),
+    "dy_VBF_filter": dict(target=2, process_ID="DY"),
+    "dy_M-100To200_MiNNLO": dict(target=2, process_ID="DY"),
+    "dy_M-50_MiNNLO": dict(target=2, process_ID="DY"),
+    "ewk_lljj_mll50_mjj120": dict(target=3, process_ID="EWK"),
+    "ttjets_dl": dict(target=4, process_ID="TOP"),
+    "ttjets_sl": dict(target=4, process_ID="TOP"),
+}
+
+specs_3Classes = {
+    "vbf_powheg_dipole": dict(target=0, process_ID="vbf"),
+    "ggh_powhegPS": dict(target=1, process_ID="ggh"),
+    "dy_VBF_filter": dict(target=2, process_ID="bkg"),
+    "dy_M-100To200_MiNNLO": dict(target=2, process_ID="bkg"),
+    "dy_M-50_MiNNLO": dict(target=2, process_ID="bkg"),
+    "ewk_lljj_mll50_mjj120": dict(target=2, process_ID="bkg"),
+    "ttjets_dl": dict(target=2, process_ID="bkg"),
+    "ttjets_sl": dict(target=2, process_ID="bkg"),
+}
+
 # Initialize StandardScaler
 # scaler = StandardScaler()
 
@@ -65,7 +96,7 @@ CURRENT_DATETIME = datetime.now()
 # Metrics for evaluation
 METRICS = [
     tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-    tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=5),
+    tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=NUM_CLASSES),
     tf.keras.metrics.Precision(name="precision", top_k=1),
     tf.keras.metrics.Recall(name="recall", top_k=1),
     tf.keras.metrics.CategoricalCrossentropy(name="crossentropy"),
@@ -99,7 +130,7 @@ class BatchSizeTuner(kt.BayesianOptimization):
         model.save(path)
 
 
-def build_model_from_hp_values(hp_values, input_dim, n_classes=5):
+def build_model_from_hp_values(hp_values, input_dim, n_classes=None):
     # Turn a dict of fixed values into a HyperParameters object
     hp = kt.HyperParameters()
     for k, v in hp_values.items():
@@ -114,7 +145,7 @@ def load_best_hp_json(outdir):
             return json.load(f)
     return None
 
-def build_model_hp(hp, input_dim, n_classes=5):
+def build_model_hp(hp, input_dim, n_classes=None):
     act = hp.Choice('activation', ['relu', 'gelu', 'swish'])
     depth = hp.Int('depth', 2, 9)
     width = hp.Int('width', min_value=128, max_value=2560, step=128)
@@ -147,7 +178,7 @@ def build_model_hp(hp, input_dim, n_classes=5):
         loss=tf.keras.losses.CategoricalCrossentropy(),
         metrics=[
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-            tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=5),
+            tf.keras.metrics.AUC(name="auc", multi_label=True, num_labels=n_classes),
             tf.keras.metrics.Precision(name="precision", top_k=1),
             tf.keras.metrics.Recall(name="recall", top_k=1),
             tf.keras.metrics.CategoricalCrossentropy(name="crossentropy"),
@@ -211,7 +242,7 @@ def _read_proc_ddf(base, proc, variables):
     print(f"Reading path: {base}")
     # pat = os.path.join(base, "/**/", proc, "*.parquet")
     year = "**"
-    year = 2017
+    year = "2016*"
     pat = str(base / year / proc / "*.parquet")
     print(f"Reading parquet files from: {pat}")
     # print
@@ -222,19 +253,13 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
     Reads all parquet under inputPath/{ggh,vbf,bkg}/ recursively via Dask,
     takes up to num_events rows per process, returns (X, y) as numpy arrays.
     """
-    specs = {
-        "vbf_powheg_dipole": dict(target=0, process_ID="vbf"),
-        "ggh_powhegPS": dict(target=1, process_ID="ggh"),
+    if NUM_CLASSES == 5:
+        specs = specs_5Classes
+    elif NUM_CLASSES == 3:
+        specs = specs_3Classes
+    else:
+        raise RuntimeError("NUM_CLASSES must be 3 or 5")
 
-        "dy_VBF_filter": dict(target=2, process_ID="DY"),
-        "dy_M-100To200_MiNNLO": dict(target=2, process_ID="DY"),
-        "dy_M-50_MiNNLO": dict(target=2, process_ID="DY"),
-
-        "ewk_lljj_mll50_mjj120": dict(target=3, process_ID="EWK"),
-
-        "ttjets_dl": dict(target=4, process_ID="TOP"),
-        "ttjets_sl": dict(target=4, process_ID="TOP"),
-    }
     parts = []
     for proc, meta in specs.items():
         ddf = _read_proc_ddf(inputPath, proc, variables)
@@ -259,9 +284,7 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
         df["is_njet1"]  = (df["njets_nominal"] == 1).astype("int8")
         df["is_njet2p"] = (df["njets_nominal"] >= 2).astype("int8")
 
-
         parts.append(df)
-
 
     indicator_cols = ["has_jet1","has_jet2","has_dijet","is_njet0","is_njet1","is_njet2p"]
 
@@ -270,7 +293,6 @@ def load_from_parquet_to_numpy(inputPath, variables, num_events):
     df_all = pd.concat(parts, ignore_index=True)
 
     variables += indicator_cols
-
 
     X = df_all[variables].to_numpy(dtype=np.float32)
     y = df_all["target"].to_numpy(dtype=np.int64)
@@ -304,7 +326,7 @@ def custom_learning_rate_scheduler(epoch, lr):
 
 
 # Function to build the multi-class DNN model
-def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001, n_classes=5):
+def build_model(input_dim, activation='relu', dropout_rate=0.2, learn_rate=0.001, n_classes=None):
     model = Sequential([
         Dense(256, input_shape=(input_dim,), activation=activation),
         BatchNormalization(),
@@ -421,9 +443,6 @@ def main():
     feature_columns = [col for col in variables if col not in ['target','process_ID']]
     print(f"Feature columns: {feature_columns}")
 
-    n_classes = 5  # vbf, ggh, DY, EWK, TOP
-    CLASS_LABELS = ["vbf", "ggh", "DY", "EWK", "TOP"]
-
     if os.path.exists(npz_cache) and os.path.exists(scaler_cache) and (not args.retrain):
         print(f"[cache] loading arrays from {npz_cache}")
         data = load_npz_dataset(npz_cache)
@@ -443,7 +462,7 @@ def main():
         X, y = load_from_parquet_to_numpy(args.inputPath, feature_columns, args.num_events)
 
         # 2) one-hot labels
-        Y = np.eye(n_classes, dtype=np.float32)[y]
+        Y = np.eye(NUM_CLASSES, dtype=np.float32)[y]
 
         # X = np.asarray(X, dtype=np.float32)
         # # Replace -999 or -99 with -9
@@ -616,11 +635,11 @@ def main():
 
     print("="*40)
     print("Classification report:")
-    print(classification_report(y_true, y_pred, target_names=CLASS_LABELS, digits=3))
+    # print(classification_report(y_true, y_pred, target_names=CLASS_LABELS, digits=3))
     print("="*40)
 
     # ROC Curve
-    plot_roc_curve_multiclass(Y_val, y_prob, plots_dir, labels=CLASS_LABELS, mass=None)
+    # plot_roc_curve_multiclass(Y_val, y_prob, plots_dir, labels=CLASS_LABELS, mass=None)
 
     # Classification Report
     plot_classifier_output(model, X_train, Y_train, X_val, Y_val, output_dir=plots_dir, mass=None)
@@ -630,15 +649,15 @@ def main():
     csv_log   = os.path.join(args.output_dir, "training.log")
 
     # only call the regular plot if we actually trained this run
-    if history is not None and hasattr(history, "history"):
-        plot_training_progress(history, plots_dir)
-    else:
-        # fallback to CSV log produced in a previous run
-        plot_training_progress_from_csv(csv_log, plots_dir)
+    # if history is not None and hasattr(history, "history"):
+    #     plot_training_progress(history, plots_dir)
+    # else:
+    #     # fallback to CSV log produced in a previous run
+    #     plot_training_progress_from_csv(csv_log, plots_dir)
 
-    plot_metrics(history, plots_dir, csv_log)
+    # plot_metrics(history, plots_dir, csv_log)
     # plot_overfitting_multiclass(model = model, X_train=X_train, Y_train=Y_train, X_test=X_val, Y_test=Y_val, class_labels=CLASS_LABELS, output_dir=plots_dir)
-    plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=CLASS_LABELS, output_dir=plots_dir)
+    # plot_overfitting_per_class(y_true=y_true, y_pred=y_pred, class_labels=CLASS_LABELS, output_dir=plots_dir)
 
     # Confusion Matrix
     plot_confusion_matrix_multiclass(Y_val, y_pred, plots_dir, labels=CLASS_LABELS, mass=None)

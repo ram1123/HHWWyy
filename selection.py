@@ -166,9 +166,9 @@ def applyRegionCatCuts(
 
     # do mass region cut
     mass = events.dimuon_mass
-    z_peak = (mass > 70) & (mass < 110)
-    h_sidebands = ((mass > 110) & (mass < 115)) | ((mass > 135) & (mass < 150))
-    h_peak = (mass > 115) & (mass < 135)
+    z_peak = (mass > 70) & (mass <= 110)
+    h_sidebands = ((mass > 110) & (mass <= 115)) | ((mass > 135) & (mass <= 150))
+    h_peak = (mass > 115) & (mass <= 135)
     if region_name == "signal":
         region = h_sidebands | h_peak
     elif region_name == "h-peak":
@@ -177,6 +177,8 @@ def applyRegionCatCuts(
         region = h_sidebands
     elif region_name == "z-peak":
         region = z_peak
+    elif region_name == "all":
+        region = z_peak | h_sidebands | h_peak
     else:
         print("ERROR: Invalid region specified. Acceptable regions are: signal, h-peak, h-sidebands, z-peak")
         raise ValueError
@@ -204,20 +206,20 @@ def applyRegionCatCuts(
         # prod_cat_cut = ak.ones_like(region, dtype="bool")
 
         # NOTE: fatjet and MET veto for VH: nfatJets_drmuon == 0 and MET_pt < 150 GeV
-        fatjet_veto = ak.fill_none((events.nfatJets_drmuon == 0), value=False)
-        met_veto = ak.fill_none((events.MET_pt < 150), value=False)
+        # fatjet_veto = ak.fill_none((events.nfatJets_drmuon == 0), value=False)
+        # met_veto = ak.fill_none((events.MET_pt < 150), value=False)
         # prod_cat_cut = prod_cat_cut & fatjet_veto
         # prod_cat_cut = prod_cat_cut & met_veto
-        prod_cat_cut = prod_cat_cut & fatjet_veto & met_veto
+        # prod_cat_cut = prod_cat_cut & fatjet_veto & met_veto
 
     else:  # VBF or ggH
         prod_cat_cut = ak.ones_like(region, dtype="bool")
         # NOTE: fatjet and MET veto for VH: nfatJets_drmuon == 0 and MET_pt < 150 GeV
-        fatjet_veto = ak.fill_none((events.nfatJets_drmuon == 0), value=False)
-        met_veto = ak.fill_none((events.MET_pt < 150), value=False)
+        # fatjet_veto = ak.fill_none((events.nfatJets_drmuon == 0), value=False)
+        # met_veto = ak.fill_none((events.MET_pt < 150), value=False)
         # prod_cat_cut = prod_cat_cut & fatjet_veto
         # prod_cat_cut = prod_cat_cut & met_veto
-        prod_cat_cut = prod_cat_cut & fatjet_veto & met_veto
+        # prod_cat_cut = prod_cat_cut & fatjet_veto & met_veto
 
         # NOTE: btag cut for VH and ttH categories
         btagLoose_filter = ak.fill_none((nbt_loose >= 2), value=False)

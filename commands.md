@@ -1,4 +1,12 @@
 
+# 13 October 2024
+
+```bash
+time python train-multiclassDNN.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn_AK8jets  --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --json input_variables_more_vars.json --num_events 0 --job_name train_more_vars_v2_13Oct --epochs 25
+time python train-multiclassDNN.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn_AK8jets  --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --json input_variables_more_vars.json --num_events 0 --job_name train_more_vars_v2_13Oct_16PrePost --epochs 25
+time python train-multiclassDNN.py --inputPath /depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn_AK8jets  --output_dir /depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/  --json input_variables_more_vars.json --num_events 0 --job_name train_more_vars_v2_13Oct_16PrePost_3Class --epochs 25
+```
+
 # 09 October 2024
 
 ```bash

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # force CPU
 
 import json
@@ -20,6 +21,7 @@ import selection  # your module
 # ================== USER CONFIG ==================
 INPUT_DIR = "/depot/cms/hmm/shar1172/hmm_ntuples/skimmed_for_dnn/2018/"
 FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_variables.json"
+# FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_variables_more_vars.json"
 
 # # With both EBE mass res inputs
 # MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_multiclass_fullStats_Scan_Quick/"
@@ -27,8 +29,8 @@ FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_va
 # # Removed both EBE mass res inputs
 # MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBE/"
 
-# # With class weights only to fix the imbalance in training
-# MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2/"
+# # With class weights only to fix the imbalance in training # INFO: Last best training
+MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2/"
 
 # # No EBE mass res inputs, With sample weights to fix the imbalance in training (sample weight takes class weight into account)
 # MODEL_DIR = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/DNN_Removed_EBEv2_SampleWgt/"
@@ -47,11 +49,14 @@ FEATURES_JSON = "/depot/cms/private/users/shar1172/HHWWyy_DNN_For_HMuMu/input_va
 # MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_BothEBE_WithClassWgt/"
 
 # # With class weight and only relative EBE mass res as input
-MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_relEBE_WithClassWgt/"
+# MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/Run2_DNN_relEBE_WithClassWgt/"
+
+# With class weight: With pairwise features
+# MODEL_DIR = "/depot/cms/users/shar1172/HHWWyy_DNN_For_HMuMu/outputs/Run2_nanoAODv12_UpdatedQGL_FixPUJetIDWgt/train_more_vars_v2_13Oct_16PrePost_3Class/"
 
 SCALER_NPZ = f"{MODEL_DIR}/scaler.npz"
 MODEL_PATH = f"{MODEL_DIR}/model.keras"
-OUT_DIR = f"{MODEL_DIR}/tag_fractions"
+OUT_DIR = f"{MODEL_DIR}/tag_fractions_5Nov"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Optional secondary input with event weights. When left as None, the code will
@@ -85,7 +90,7 @@ SAMPLES = {
     "ggh_powhegPS": ("notbtag", False),
     "vbf_powheg_dipole": ("notbtag", False),
     "dy_VBF_filter": ("notbtag", True),
-    # "dy_M-100To200_MiNNLO": ("notbtag", True),
+    "dy_M-100To200_MiNNLO": ("notbtag", True),
     # "dy_M-50_MiNNLO": ("notbtag", True),
     # "ewk_lljj_mll50_mjj120": ("notbtag", False),
     # "ttjets_dl": ("notbtag", False),
@@ -555,7 +560,7 @@ if __name__ == "__main__":
     plot_model(model, to_file=model_schematic_name, show_shapes=True,
                     show_layer_names=True, rankdir='TB', expand_nested=True, dpi=96) # rankdir='LR' for horizontal plot
 
-    sys.exit(0)
+    # sys.exit(0)
 
     sc_npz = np.load(SCALER_NPZ)
     mean = sc_npz.get("mean_", sc_npz.get("mean"))

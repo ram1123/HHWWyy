@@ -142,10 +142,10 @@ def plot_confusion_matrix_multiclass(y_true, y_pred, output_dir, labels, mass = 
     if y_pred.ndim > 1:
         y_pred = np.argmax(y_pred, axis=1)
 
-    cm = confusion_matrix(y_true, y_pred, labels=range(len(labels)))
+    cm = confusion_matrix(y_true, y_pred, labels=range(len(labels)), normalize="true")
 
     plt.figure(figsize=(8, 8))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels)
+    sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues", xticklabels=labels, yticklabels=labels)
     if mass is not None:
         plt.title(f"Confusion Matrix for Mass {mass}")
     else:
@@ -415,8 +415,14 @@ def plot_classifier_output(model, X_train, Y_train, X_test, Y_test, output_dir, 
     comparisons = {
         "ggH vs Background": (1, 2),
         "VBF vs Background": (0, 2),
-        "ggH vs VBF": (1, 0)
+        "ggH vs VBF": (1, 0),
     }
+    # Now, its 5 class: 0: VBF, 1: ggH, 2: DY, 3: EWK, 4: TOP
+    #  so, vbf vs background = 0 vs (1+2+3+4)
+    # comparisons = {
+    #     "VBF vs Background 5Class": (0, 0 + 1 + 2 + 3 + 4),
+    #     "ggH vs Background 5Class": (1, 1 + 2 + 3 + 4),
+    # }
 
     for plot_title, (signal_idx, background_idx) in comparisons.items():
         plt.figure(figsize=(8, 6))
